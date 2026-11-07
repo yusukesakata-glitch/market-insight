@@ -75,6 +75,8 @@
   .budgetrow .budgetVal{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap;min-width:50px;text-align:right}
   .budgetOut{font-size:15.5px;font-weight:800;color:var(--navy)}
   .budgetOut .arr{color:var(--gold);margin:0 5px}
+  .targetOut{font-size:13.5px;font-weight:800;color:var(--navy);margin-top:3px}
+  .targetOut .arr{color:var(--gold);margin:0 5px}
   .actualLine{font-size:12px;color:var(--sub);margin-top:4px;line-height:1.6}
   .scopetoggle{display:inline-flex;background:var(--light);border-radius:999px;padding:3px;gap:2px}
   .scopetoggle button{border:0;background:transparent;font-size:12px;font-weight:700;color:var(--sub);border-radius:999px;padding:6px 14px;cursor:pointer}
@@ -152,6 +154,11 @@
         <button data-v="all" class="on">全期間</button><button data-v="recent">直近3ヶ月</button>
       </div>
     </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <span style="font-size:11px;font-weight:700;color:var(--sub)">目標応募数</span>
+      <input type="number" id="inpTarget" min="1" max="999" value="30" style="width:72px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;font-size:13.5px;font-weight:700;color:var(--navy)">
+      <span style="font-size:11px;color:var(--sub)">件 → 各カードに予算の目安を表示</span>
+    </div>
     <div class="meta" id="dataMeta"></div>
   </div>
 
@@ -170,6 +177,7 @@
         <span class="budgetVal">20万円</span>
       </div>
       <div class="budgetOut" id="budgetOutSingle"></div>
+      <div class="targetOut" id="targetOutSingle"></div>
       <div class="actualLine" id="actualSingle"></div>
       <div class="noprint" style="margin-top:8px"><button class="hbtn" id="btnModalSingle" style="display:none">実績が多い帯に合わせる</button></div>
     </div>
@@ -198,6 +206,7 @@
         <span class="budgetVal">20万円</span>
       </div>
       <div class="budgetOut" id="budgetOutArea"></div>
+      <div class="targetOut" id="targetOutArea"></div>
       <div class="actualLine" id="actualArea"></div>
       <div class="noprint" style="margin-top:8px"><button class="hbtn" id="btnModalArea" style="display:none">実績が多い帯に合わせる</button></div>
     </div>
@@ -241,7 +250,7 @@
 <div class="modal" id="importModal">
   <div class="mbox">
     <h3>データ取込</h3>
-    <p>相場データのファイルを取り込みます（項目：年月・都道府県・市区町村・職種分類・掲載費用（円）・応募件数）。CSV / Excel（.xlsx）対応。</p>
+    <p>相場データのファイルを取り込みます。テンプレート形式（年月・都道府県・市区町村・職種分類・掲載費用（円）・応募件数）と、集計表のピボット形式（月が列）の両方に対応します。企業数・業種の列があれば一緒に取り込みます。CSV / Excel（.xlsx）対応。</p>
     <div class="row" style="gap:16px">
       <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="replace" checked> 既存データを置き換え（推奨）</label>
       <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="append"> 既存データに追加</label>
@@ -307,7 +316,7 @@ const PREM_BANDS = [
 ];
 const AREA_RADIUS_KM = 5.5;
 
-const state = { pref: null, city: null, station: null, job: 0, plan: "std", trend: "single", basis: "all", budget: 200000, areaKey: null, areaCands: [], areaSel: [], seasonMonth: null };
+const state = { pref: null, city: null, station: null, job: 0, plan: "std", trend: "single", basis: "all", budget: 200000, target: 30, areaKey: null, areaCands: [], areaSel: [], seasonMonth: null };
 const $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString("ja-JP");
 function monthsAll() { return [...new Set(DATA.map(r => r[0]))].sort(); }
@@ -580,11 +589,14 @@ function renderForecast(prefix, fc) {
   lastFc[prefix] = fc;
   const elMeta = $("meta" + prefix), elChart = $("chart" + prefix), elTable = $("table" + prefix);
   const elOut = $("budgetOut" + prefix), elAct = $("actual" + prefix), elBtn = $("btnModal" + prefix);
+  const elTgt = $("targetOut" + prefix);
   if (fc) {
     elMeta.textContent = `応募単価 ${fmt(fc.cpa)}円／件（${fc.basisUsed === "recent" ? "直近3ヶ月" : "実績期間"} ${fc.rangeLabel}・応募総数 ${fmt(fc.totalApps)}件から算出）`;
     const est = Math.round(state.budget / fc.cpa);
     const [mn, mx] = estRange(est);
     elOut.innerHTML = `予算 ${state.budget / 10000}万円<span class="arr">→</span>想定応募数 ${mn === mx ? fmt(est) : fmt(mn) + "〜" + fmt(mx)}件`;
+    const need = Math.round(state.target * fc.cpa / 1000) * 1000;
+    if (elTgt) elTgt.innerHTML = `目標 ${fmt(state.target)}件<span class="arr">→</span>予算の目安 約${manYen(need)}万円`;
     elAct.textContent = fc.actual
       ? `最近の実績（${fc.actual.from}〜${fc.actual.to}・${fc.actual.months}ヶ月分の月平均）：掲載費用 約${manYen(fc.actual.avgFee)}万円・応募 約${fmt(fc.actual.avgApps)}件（エリア全体）`
       : "";
@@ -594,6 +606,7 @@ function renderForecast(prefix, fc) {
   } else {
     elMeta.textContent = "";
     elOut.innerHTML = "";
+    if (elTgt) elTgt.innerHTML = "";
     elAct.textContent = "";
     if (elBtn) elBtn.style.display = "none";
     elChart.innerHTML = '<div class="nodata">この条件のデータがありません</div>';
@@ -727,6 +740,11 @@ function setBudget(v) {
   render();
 }
 document.querySelectorAll(".budgetSlider").forEach(sl => sl.addEventListener("input", () => setBudget(+sl.value)));
+$("inpTarget").addEventListener("input", e => {
+  const v = parseInt(e.target.value, 10);
+  state.target = isNaN(v) ? 30 : Math.min(999, Math.max(1, v));
+  render();
+});
 ["Single", "Area"].forEach(prefix => {
   $("btnModal" + prefix).addEventListener("click", () => {
     const fc = lastFc[prefix];
@@ -790,8 +808,13 @@ $("dlTemplate").addEventListener("click", () => {
   downloadBlob(new Blob(["\uFEFF" + csv], { type: "text/csv" }), "相場データ_テンプレート.csv");
 });
 $("exportData").addEventListener("click", () => {
-  const head = "年月,都道府県,市区町村,職種分類,掲載費用（円）,応募件数";
-  const lines = DATA.map(r => [r[0], r[1], r[2], JOB_NAMES[r[3]], r[4], r[5]].join(","));
+  const hasX = DATA.some(r => r.length > 6);
+  const head = "年月,都道府県,市区町村,職種分類,掲載費用（円）,応募件数" + (hasX ? ",企業数,業種" : "");
+  const lines = DATA.map(r => {
+    const base = [r[0], r[1], r[2], JOB_NAMES[r[3]], r[4], r[5]];
+    if (hasX) base.push(r[6] ?? "", r[7] || "");
+    return base.join(",");
+  });
   downloadBlob(new Blob(["\uFEFF" + head + "\n" + lines.join("\n") + "\n"], { type: "text/csv" }), "相場データ_書き出し.csv");
   $("importMsg").textContent = `${fmt(DATA.length)}件を書き出しました。`;
 });
@@ -890,24 +913,109 @@ async function parseXlsx(buf) {
   }
   return rows;
 }
+function normYm(s) {
+  const m = String(s).trim().match(/^(20\d{2})[-\/年](\d{1,2})/);
+  if (!m) return null;
+  const mo = parseInt(m[2], 10);
+  if (mo < 1 || mo > 12) return null;
+  return m[1] + "-" + String(mo).padStart(2, "0");
+}
+function jobOf(name) {
+  const n = String(name || "");
+  if (n.includes("キャスト")) return 0;
+  if (n.includes("ホール")) return 1;
+  return -1;
+}
 function rowsToRecords(table) {
   const head = (table[0] || []).map(h => String(h).trim());
-  const idx = {};
-  ["年月", "都道府県", "市区町村", "職種分類", "掲載費用（円）", "応募件数"].forEach(k => {
-    idx[k] = head.indexOf(k);
-    if (idx[k] < 0) throw new Error("項目が見つかりません：" + k);
-  });
-  const rows = [];
-  for (let i = 1; i < table.length; i++) {
-    const c = table[i];
-    if (!c || !c.length) continue;
-    const jobName = String(c[idx["職種分類"]] ?? "");
-    const job = jobName === "キャスト" ? 0 : jobName.includes("ホール") ? 1 : -1;
-    const fee = parseFloat(c[idx["掲載費用（円）"]]), apps = parseFloat(c[idx["応募件数"]]);
-    const ym = String(c[idx["年月"]] ?? "").trim();
-    if (job < 0 || isNaN(fee) || isNaN(apps) || !ym) continue;
-    rows.push([ym, String(c[idx["都道府県"]] ?? ""), String(c[idx["市区町村"]] ?? ""), job, fee, apps]);
+  if (head.indexOf("年月") >= 0 && head.indexOf("市区町村") >= 0) {
+    /* 行形式（テンプレート）。企業数・業種の列があれば一緒に取り込む */
+    const gi = k => head.indexOf(k);
+    ["年月", "都道府県", "市区町村", "職種分類", "掲載費用（円）", "応募件数"].forEach(k => {
+      if (gi(k) < 0) throw new Error("項目が見つかりません：" + k);
+    });
+    const ciComp = head.findIndex(h => h === "企業数" || h === "企業名");
+    const ciInd = gi("業種");
+    const rows = [];
+    for (let i = 1; i < table.length; i++) {
+      const c = table[i];
+      if (!c || !c.length) continue;
+      const job = jobOf(c[gi("職種分類")]);
+      const fee = parseFloat(c[gi("掲載費用（円）")]), apps = parseFloat(c[gi("応募件数")]);
+      const ym = normYm(c[gi("年月")] ?? "") || String(c[gi("年月")] ?? "").trim();
+      if (job < 0 || isNaN(fee) || isNaN(apps) || !ym) continue;
+      const rec = [ym, String(c[gi("都道府県")] ?? ""), String(c[gi("市区町村")] ?? ""), job, fee, apps];
+      const comp = ciComp >= 0 ? parseFloat(c[ciComp]) : NaN;
+      const ind = ciInd >= 0 ? String(c[ciInd] ?? "").trim() : "";
+      if (!isNaN(comp) || ind) { rec[6] = isNaN(comp) ? null : comp; rec[7] = ind; }
+      rows.push(rec);
+    }
+    return rows;
   }
+  return pivotToRecords(table);
+}
+function pivotToRecords(table) {
+  /* 集計表ピボット（月が列）：2段ヘッダー（月＋指標）と、指標列つき1段ヘッダーに対応 */
+  const cells = r => (r || []).map(h => String(h).trim());
+  const metricOf = s => { s = String(s); if (s.includes("費用")) return "fee"; if (s.includes("応募")) return "apps"; if (s.includes("企業")) return "comp"; return null; };
+  const findDim = row => {
+    const cs = cells(row);
+    return { pref: cs.indexOf("都道府県"), city: cs.indexOf("市区町村"), job: cs.indexOf("職種分類"), ind: cs.indexOf("業種") };
+  };
+  let dim = findDim(table[0]);
+  let headRows = 1;
+  if (dim.city < 0) { dim = findDim(table[1]); headRows = 2; }
+  if (dim.city < 0 || dim.job < 0) throw new Error("集計表の形式を読み取れませんでした（都道府県・市区町村・職種分類の列が必要です）");
+  const lastDimCol = Math.max(dim.pref, dim.city, dim.job, dim.ind);
+  const indCol = cells(table[0]).findIndex(h => ["指標", "項目", "区分"].includes(h));
+  if (headRows === 1 && indCol < 0) {
+    const r1 = cells(table[1]);
+    if (r1.some((h, c) => c > lastDimCol && metricOf(h))) headRows = 2;
+  }
+  const monthCols = [];
+  if (headRows === 2) {
+    const mRow = cells(table[0]), metRow = cells(table[1]);
+    let curYm = null;
+    for (let c = 0; c < Math.max(mRow.length, metRow.length); c++) {
+      const ym = normYm(mRow[c] ?? ""); if (ym) curYm = ym;
+      const met = metricOf(metRow[c] ?? "");
+      if (curYm && met && c > lastDimCol) monthCols.push({ col: c, ym: curYm, met });
+    }
+  } else {
+    const hd = cells(table[0]);
+    for (let c = 0; c < hd.length; c++) {
+      const ym = normYm(hd[c]);
+      if (ym && c > lastDimCol) monthCols.push({ col: c, ym, met: null });
+    }
+  }
+  if (!monthCols.length) throw new Error("集計表の月列が見つかりませんでした");
+  const acc = new Map();
+  for (let i = headRows; i < table.length; i++) {
+    const c = table[i];
+    if (!c) continue;
+    const pref = String(c[dim.pref] ?? ""), city = String(c[dim.city] ?? ""), job = jobOf(c[dim.job]);
+    if (!city || job < 0) continue;
+    const ind = dim.ind >= 0 ? String(c[dim.ind] ?? "").trim() : "";
+    const rowMet = indCol >= 0 ? metricOf(c[indCol] ?? "") : null;
+    for (const mc of monthCols) {
+      const met = mc.met || rowMet;
+      if (!met) continue;
+      const v = parseFloat(c[mc.col]);
+      if (isNaN(v)) continue;
+      const key = mc.ym + "|" + pref + "|" + city + "|" + job + "|" + ind;
+      if (!acc.has(key)) acc.set(key, { ym: mc.ym, pref, city, job, ind, fee: 0, apps: 0, comp: null });
+      const a = acc.get(key);
+      if (met === "fee") a.fee = v; else if (met === "apps") a.apps = v; else a.comp = v;
+    }
+  }
+  const rows = [];
+  for (const a of acc.values()) {
+    if (!a.fee && !a.apps) continue;
+    const rec = [a.ym, a.pref, a.city, a.job, a.fee, a.apps];
+    if (a.comp != null || a.ind) { rec[6] = a.comp; rec[7] = a.ind; }
+    rows.push(rec);
+  }
+  if (!rows.length) throw new Error("集計表から取り込める行がありませんでした");
   return rows;
 }
 $("doImport").addEventListener("click", async () => {
@@ -926,7 +1034,7 @@ $("doImport").addEventListener("click", async () => {
     const rows = rowsToRecords(table);
     if (!rows.length) throw new Error("取り込める行がありませんでした");
     if (mode === "append") {
-      const key = r => r[0] + "|" + r[1] + "|" + r[2] + "|" + r[3];
+      const key = r => r[0] + "|" + r[1] + "|" + r[2] + "|" + r[3] + "|" + (r[7] || "");
       const map = new Map(DATA.map(r => [key(r), r]));
       rows.forEach(r => map.set(key(r), r));
       DATA = [...map.values()];
