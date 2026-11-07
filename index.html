@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>採用相場感ビジュアライザー</title>
+<link rel="icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --navy:#163B5B; --navy2:#25475F; --gold:#D9A94A; --gold-d:#B8933F;
+    --bg:#F4F8FB; --card:#FFFFFF; --line:#DCE6EE; --light:#EDF5FC;
+    --ink:#1E2832; --sub:#5F6973; --faint:#8B95A0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  .wrap{max-width:880px;margin:0 auto;padding:14px 14px 40px}
+
+  /* ヘッダー */
+  header{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 16px}
+  header img{width:34px;height:34px}
+  header .ttl{font-size:17px;font-weight:800;color:var(--navy);letter-spacing:.02em;line-height:1.25}
+  header .sub{font-size:11px;color:var(--sub)}
+  header .sp{flex:1}
+  .hbtn{border:1px solid var(--line);background:#fff;color:var(--navy2);font-size:12px;font-weight:700;border-radius:999px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+  .hbtn:active{background:var(--light)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
+  .card h2{font-size:15px;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card h2 .tag{font-size:11px;font-weight:700;color:var(--sub);background:var(--light);border-radius:999px;padding:3px 10px}
+  .meta{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
+  .disc{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.6}
+
+  /* 条件選択 */
+  .steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .steps span{font-size:11px;font-weight:700;color:var(--navy2);background:var(--light);border-radius:999px;padding:4px 11px}
+  .selrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:640px){.selrow{grid-template-columns:1fr}}
+  label.flabel{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
+  select{width:100%;font-size:15px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);appearance:none}
+  select:disabled{color:var(--faint);background:var(--bg)}
+  .jobtabs{display:flex;gap:8px;margin-top:14px}
+  .jobtab{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:10px;font-size:14px;font-weight:800;color:var(--sub);cursor:pointer;text-align:center}
+  .jobtab.on-cast{background:var(--navy);border-color:var(--navy);color:#fff}
+  .jobtab.on-hall{background:var(--gold);border-color:var(--gold);color:#fff}
+
+  /* プラン切替・グラフ */
+  .plantoggle{display:inline-flex;background:var(--light);border-radius:999px;padding:3px;gap:2px}
+  .plantoggle button{border:0;background:transparent;font-size:12px;font-weight:700;color:var(--sub);border-radius:999px;padding:6px 14px;cursor:pointer}
+  .plantoggle button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(22,59,91,.18)}
+  .charthead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .svgbox{margin-top:8px}
+  svg{display:block;width:100%;height:auto}
+  table.bands{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+  table.bands th,table.bands td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right}
+  table.bands th:first-child,table.bands td:first-child{text-align:left}
+  table.bands th{font-size:11px;color:var(--sub);font-weight:700}
+  table.bands td.v{font-weight:800;color:var(--navy)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chips span{font-size:11.5px;background:var(--light);color:var(--navy2);border-radius:999px;padding:4px 11px;font-weight:600}
+  .nodata{padding:26px 10px;text-align:center;color:var(--sub);font-size:13px;background:var(--bg);border-radius:12px;margin-top:10px}
+
+  /* 時期の傾向 */
+  .insight{background:var(--light);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.7;margin-top:10px}
+  .insight b{color:var(--navy)}
+  .scopetoggle{display:inline-flex;background:var(--light);border-radius:999px;padding:3px;gap:2px}
+  .scopetoggle button{border:0;background:transparent;font-size:12px;font-weight:700;color:var(--sub);border-radius:999px;padding:6px 14px;cursor:pointer}
+  .scopetoggle button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(22,59,91,.18)}
+
+  footer.site{margin-top:18px;font-size:11px;color:var(--faint);line-height:1.7;padding:0 4px}
+
+  /* モーダル */
+  .modal{position:fixed;inset:0;background:rgba(22,35,48,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .modal.open{display:flex}
+  .mbox{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:20px 18px 26px;max-height:88vh;overflow:auto}
+  .mbox h3{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:8px}
+  .mbox p{font-size:12.5px;color:var(--sub);line-height:1.7}
+  .mbox .row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .btn{border:0;border-radius:999px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer}
+  .btn.navy{background:var(--navy);color:#fff}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--navy2)}
+  .btn.danger{background:#fff;border:1px solid #E5B4B4;color:#B03A3A}
+  input[type=file]{font-size:12.5px;max-width:100%}
+
+  .printhead{display:none}
+  /* ログインゲート */
+  .gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}
+  .gate.hide{display:none}
+  .gbox{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 24px;width:100%;max-width:360px;text-align:center}
+  .gbox img{width:52px;height:52px}
+  .gbox .gt{font-size:16px;font-weight:800;color:var(--navy);margin-top:10px}
+  .gbox .gs{font-size:11.5px;color:var(--sub);margin:2px 0 18px}
+  .gbox input[type=password]{width:100%;font-size:15px;padding:12px;border:1px solid var(--line);border-radius:12px}
+  .gbox .gerr{font-size:12px;color:#B03A3A;margin-top:10px;min-height:16px}
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    header,.noprint{display:none!important}
+    .card{border:0;border-radius:0;margin-top:0;padding:6mm 2mm}
+    .pagebreak{page-break-before:always}
+    .printhead{display:block;padding:0 2mm 4mm}
+    .printhead .t{font-size:16px;font-weight:800;color:var(--navy)}
+    .printhead .s{font-size:11px;color:var(--sub);margin-top:2px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="printhead">
+    <div class="t">採用相場感ビジュアライザー</div>
+    <div class="s" id="printSub"></div>
+  </div>
+
+  <header>
+    <img src="logo-mark.png" alt="">
+    <div>
+      <div class="ttl">採用相場感ビジュアライザー</div>
+      <div class="sub">Recruiting Notes Communications</div>
+    </div>
+    <div class="sp"></div>
+    <button class="hbtn noprint" id="btnImport">データ取込</button>
+    <button class="hbtn noprint" id="btnPrint">印刷・PDF</button>
+  </header>
+
+  <div class="card noprint">
+    <div class="steps"><span>1 地域を選択</span><span>2 職種を選択</span><span>3 相場を確認</span><span>4 時期の傾向</span></div>
+    <div class="selrow">
+      <div><label class="flabel">都道府県</label><select id="selPref"></select></div>
+      <div><label class="flabel">市区町村</label><select id="selCity"></select></div>
+      <div><label class="flabel">最寄駅（周辺エリア用）</label><select id="selStation"></select></div>
+    </div>
+    <div class="jobtabs">
+      <button class="jobtab" id="tabCast">キャスト</button>
+      <button class="jobtab" id="tabHall">ホールスタッフ・黒服など</button>
+    </div>
+    <div class="meta" id="dataMeta"></div>
+  </div>
+
+  <div class="card" id="cardSingle">
+    <div class="charthead">
+      <h2 id="titleSingle">市区町村単体の相場</h2>
+      <div class="plantoggle noprint" data-plan="A">
+        <button data-v="std">スタンダード</button><button data-v="prem">プレミアム</button>
+      </div>
+    </div>
+    <div class="meta" id="metaSingle"></div>
+    <div class="svgbox" id="chartSingle"></div>
+    <div id="tableSingle"></div>
+    <div class="disc">※想定応募数は、実績データ（月平均応募数）をもとに月給帯ごとの係数で算出した見込みです。募集条件によって変化し、応募数を保証するものではありません。</div>
+  </div>
+
+  <div class="card pagebreak" id="cardArea">
+    <div class="charthead">
+      <h2 id="titleArea">周辺エリア合算の相場</h2>
+      <div class="plantoggle noprint" data-plan="B">
+        <button data-v="std">スタンダード</button><button data-v="prem">プレミアム</button>
+      </div>
+    </div>
+    <div class="chips" id="areaChips"></div>
+    <div class="meta" id="metaArea"></div>
+    <div class="svgbox" id="chartArea"></div>
+    <div id="tableArea"></div>
+    <div class="disc">※周辺エリアは、最寄駅から半径5.5km圏内の市区町村（データがあるもの）の合算です。</div>
+  </div>
+
+  <div class="card noprint" id="cardTrend">
+    <div class="charthead">
+      <h2>時期の傾向</h2>
+      <div class="scopetoggle" id="trendScope">
+        <button data-v="single" class="on">単体</button><button data-v="area">周辺エリア</button>
+      </div>
+    </div>
+    <div class="insight" id="trendInsight"></div>
+    <div class="svgbox" id="chartTrend"></div>
+    <div class="meta" id="trendMeta"></div>
+    <div class="svgbox" id="chartSeason"></div>
+    <div class="meta" id="seasonMeta"></div>
+  </div>
+
+  <footer class="site">
+    算出方法：基準応募数＝対象エリア×職種の月平均応募数（直近12ヶ月分がある場合はその期間）。想定応募数＝基準応募数×月給帯係数（帯の中央値÷15万円の0.8乗）。データは取り込んだ実績（掲載費用・応募件数）に基づきます。
+  </footer>
+</div>
+
+<div class="gate" id="gate">
+  <div class="gbox">
+    <img src="logo-mark.png" alt="">
+    <div class="gt">採用相場感ビジュアライザー</div>
+    <div class="gs">社内専用ツール</div>
+    <label class="flabel" style="text-align:left">パスワード</label>
+    <input type="password" id="gatePw" placeholder="パスワードを入力" autocomplete="current-password">
+    <button class="btn navy" id="gateBtn" style="width:100%;margin-top:12px">ログイン</button>
+    <div class="gerr" id="gateErr"></div>
+  </div>
+</div>
+
+<div class="modal" id="importModal">
+  <div class="mbox">
+    <h3>データ取込</h3>
+    <p>相場データのCSVファイルを取り込みます（項目：年月・都道府県・市区町村・職種分類・掲載費用（円）・応募件数）。取り込むと、この端末のデータはファイルの内容に置き換わります。</p>
+    <div class="row"><input type="file" id="fileData" accept=".csv,text/csv"></div>
+    <div class="row">
+      <button class="btn navy" id="doImport">取り込む</button>
+      <button class="btn ghost" id="resetData">初期データに戻す</button>
+      <button class="btn ghost" id="closeImport">閉じる</button>
+    </div>
+    <p id="importMsg" style="margin-top:10px"></p>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="centroids.js"></script>
+<script src="stations.js"></script>
+<script>
+"use strict";
+/* ============ データ ============ */
+const LS_KEY = "mi_data_v1";
+let DATA = window.MARKET_DATA || [];
+try {
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved) { const p = JSON.parse(saved); if (Array.isArray(p) && p.length) DATA = p; }
+} catch (e) {}
+const JOB_NAMES = ["キャスト", "ホールスタッフ・黒服など"];
+const PREF_ORDER = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+const STD_BANDS = [[5,7],[7,10],[10,15],[15,20],[20,25],[25,30]];
+const PREM_BANDS = [[5,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50]];
+const AREA_RADIUS_KM = 5.5;
+
+const state = { pref: null, city: null, station: null, job: 0, planA: "std", planB: "std", trend: "single" };
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString("ja-JP");
+
+function monthsAll() { return [...new Set(DATA.map(r => r[0]))].sort(); }
+function dataPeriod() { const m = monthsAll(); return m.length ? [m[0], m[m.length - 1]] : null; }
+
+/* 基準応募数：直近12ヶ月（存在する月）の月平均 */
+function baseB(pref, city, job) {
+  const rows = DATA.filter(r => r[1] === pref && r[2] === city && r[3] === job);
+  if (!rows.length) return null;
+  const byMonth = {};
+  rows.forEach(r => { byMonth[r[0]] = (byMonth[r[0]] || 0) + r[5]; });
+  const ms = Object.keys(byMonth).sort();
+  const use = ms.slice(-12);
+  const avg = use.reduce((s, m) => s + byMonth[m], 0) / use.length;
+  return { B: avg, months: use.length, from: use[0], to: use[use.length - 1] };
+}
+function coef(mid) { return Math.pow(mid / 15, 0.8); }
+function bandValues(B, plan) {
+  const bands = plan === "prem" ? PREM_BANDS : STD_BANDS;
+  return bands.map(([a, b]) => ({ label: a + "〜" + b + "万円", mid: (a + b) / 2, v: Math.round(B * coef((a + b) / 2)) }));
+}
+
+/* ============ 地理 ============ */
+function havKm(a, b) {
+  const R = 6371, dLa = (b[0] - a[0]) * Math.PI / 180, dLo = (b[1] - a[1]) * Math.PI / 180;
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const STATION_MAP = {};
+(window.STATIONS || []).forEach(s => { STATION_MAP[s[0]] = [s[1], s[2]]; });
+function cityCentroid(pref, city) {
+  const c = (window.CITY_CENTROIDS || {})[pref + "|" + city];
+  return c ? [c[0], c[1]] : null;
+}
+function stationsNear(pref, city) {
+  const c = cityCentroid(pref, city);
+  if (!c) return [];
+  return (window.STATIONS || [])
+    .map(s => ({ name: s[0], d: havKm(c, [s[1], s[2]]) }))
+    .filter(s => s.d <= 8)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 40);
+}
+function areaCities(pref, stationName) {
+  const sp = STATION_MAP[stationName];
+  if (!sp) return [];
+  const cities = [...new Set(DATA.filter(r => r[1] === pref).map(r => r[2]))];
+  return cities.filter(ct => { const c = cityCentroid(pref, ct); return c && havKm(sp, c) <= AREA_RADIUS_KM; });
+}
+</script>
+<script>
+"use strict";
+/* ============ グラフ ============ */
+function barChart(values, color) {
+  const W = 640, H = 252, base = 216, top = 26;
+  const max = Math.max(...values.map(d => d.v), 1);
+  const n = values.length, slot = W / n, bw = Math.min(54, slot * 0.58);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
+  values.forEach((d, i) => {
+    const h = Math.max(2, (base - top) * d.v / max);
+    const x = slot * i + (slot - bw) / 2, y = base - h;
+    s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="6" fill="${color}"/>`;
+    s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${(y - 7).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#163B5B">${fmt(d.v)}</text>`;
+    const parts = d.label.replace("万円", "").split("〜");
+    s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${base + 17}" text-anchor="middle" font-size="11.5" fill="#5F6973">${parts[0]}〜${parts[1]}</text>`;
+  });
+  s += `<text x="${W - 2}" y="${base + 31}" text-anchor="end" font-size="10.5" fill="#8B95A0">月給帯（万円）／想定応募数（件）</text>`;
+  return s + "</svg>";
+}
+function bandTable(values) {
+  let s = '<table class="bands"><tr><th>月給帯</th><th>想定応募数</th></tr>';
+  values.forEach(d => { s += `<tr><td>${d.label}</td><td class="v">${fmt(d.v)}件</td></tr>`; });
+  return s + "</table>";
+}
+function trendChart(series) {
+  const W = 640, H = 252, base = 216, top = 30;
+  const maxA = Math.max(...series.map(d => d.apps), 1);
+  const fees = series.map(d => d.cpa).filter(v => v != null);
+  const minC = Math.min(...fees), maxC = Math.max(...fees);
+  const n = series.length, slot = W / n, bw = Math.min(26, slot * 0.6);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
+  series.forEach((d, i) => {
+    const h = Math.max(1.5, (base - top) * d.apps / maxA);
+    const x = slot * i + (slot - bw) / 2;
+    s += `<rect x="${x.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="4" fill="#25475F"/>`;
+    if (i % Math.ceil(n / 12) === 0 || i === n - 1)
+      s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${base + 16}" text-anchor="middle" font-size="10" fill="#5F6973">${d.ym.slice(2).replace("-", "/")}</text>`;
+  });
+  if (fees.length > 1) {
+    const pts = series.map((d, i) => d.cpa == null ? null : `${(slot * i + slot / 2).toFixed(1)},${(base - (base - top) * (d.cpa - minC) / Math.max(1, maxC - minC)).toFixed(1)}`).filter(Boolean);
+    s += `<polyline points="${pts.join(" ")}" fill="none" stroke="#D9A94A" stroke-width="2.5"/>`;
+    series.forEach((d, i) => { if (d.cpa != null) s += `<circle cx="${(slot * i + slot / 2).toFixed(1)}" cy="${(base - (base - top) * (d.cpa - minC) / Math.max(1, maxC - minC)).toFixed(1)}" r="3" fill="#D9A94A"/>`; });
+    s += `<text x="2" y="16" font-size="10.5" fill="#B8933F">― 応募単価（費用÷応募）</text>`;
+  }
+  s += `<text x="${W - 2}" y="16" text-anchor="end" font-size="10.5" fill="#5F6973">棒：応募数（件）</text>`;
+  return s + "</svg>";
+}
+function seasonChart(idx) {
+  const W = 640, H = 190, base = 148, top = 24;
+  const max = Math.max(...idx, 110), slot = W / 12, bw = Math.min(34, slot * 0.6);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  const y100 = base - (base - top) * 100 / max;
+  s += `<line x1="0" y1="${y100}" x2="${W}" y2="${y100}" stroke="#D9A94A" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  s += `<text x="${W - 2}" y="${y100 - 5}" text-anchor="end" font-size="10.5" fill="#B8933F">年間平均＝100</text>`;
+  idx.forEach((v, i) => {
+    const h = Math.max(2, (base - top) * v / max), x = slot * i + (slot - bw) / 2;
+    s += `<rect x="${x.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="5" fill="${v >= 100 ? "#25475F" : "#B9CBDB"}"/>`;
+    s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${base + 16}" text-anchor="middle" font-size="11" fill="#5F6973">${i + 1}月</text>`;
+    s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${(base - h - 6).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#163B5B">${Math.round(v)}</text>`;
+  });
+  return s + "</svg>";
+}
+
+/* ============ 集計 ============ */
+function monthlySeries(pref, cities, job) {
+  const map = {};
+  DATA.filter(r => r[1] === pref && cities.includes(r[2]) && r[3] === job)
+    .forEach(r => { const m = map[r[0]] || (map[r[0]] = { fee: 0, apps: 0 }); m.fee += r[4]; m.apps += r[5]; });
+  return monthsAll().map(ym => {
+    const d = map[ym];
+    return d ? { ym, apps: d.apps, cpa: d.apps ? d.fee / d.apps : null } : { ym, apps: 0, cpa: null };
+  }).filter(d => d.apps > 0 || d.cpa != null);
+}
+function seasonality(job) {
+  const byYm = {}, byMonth = Array.from({ length: 12 }, () => []);
+  DATA.filter(r => r[3] === job).forEach(r => { byYm[r[0]] = (byYm[r[0]] || 0) + r[5]; });
+  Object.entries(byYm).forEach(([ym, apps]) => { byMonth[parseInt(ym.slice(5), 10) - 1].push(apps); });
+  const avgs = byMonth.map(a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
+  const mean = avgs.reduce((s, v) => s + v, 0) / 12 || 1;
+  return avgs.map(v => v / mean * 100);
+}
+
+/* ============ 描画 ============ */
+function jobColor() { return state.job === 0 ? "#163B5B" : "#D9A94A"; }
+function render() {
+  const { pref, city, job } = state;
+  const per = dataPeriod();
+  $("dataMeta").textContent = per ? `データ期間：${per[0]}〜${per[1]}（全${fmt(DATA.length)}件）` : "";
+  $("tabCast").className = "jobtab" + (job === 0 ? " on-cast" : "");
+  $("tabHall").className = "jobtab" + (job === 1 ? " on-hall" : "");
+  document.querySelectorAll(".plantoggle").forEach(t => {
+    const key = t.dataset.plan === "A" ? state.planA : state.planB;
+    t.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === key));
+  });
+  $("printSub").textContent = `${pref} ${city}／${JOB_NAMES[job]}／データ期間：${per ? per[0] + "〜" + per[1] : ""}`;
+
+  /* 単体 */
+  const b1 = baseB(pref, city, job);
+  $("titleSingle").innerHTML = `${city} 単体の相場 <span class="tag">${JOB_NAMES[job]}</span>`;
+  if (b1) {
+    const vals = bandValues(b1.B, state.planA);
+    $("metaSingle").textContent = `基準：月平均応募数 ${fmt(b1.B)}件（${b1.from}〜${b1.to} の${b1.months}ヶ月）`;
+    $("chartSingle").innerHTML = barChart(vals, jobColor());
+    $("tableSingle").innerHTML = bandTable(vals);
+  } else {
+    $("metaSingle").textContent = "";
+    $("chartSingle").innerHTML = '<div class="nodata">この条件のデータがありません</div>';
+    $("tableSingle").innerHTML = "";
+  }
+
+  /* 周辺 */
+  const cities = state.station ? areaCities(pref, state.station) : [];
+  $("titleArea").innerHTML = `${state.station || "周辺"} 周辺エリア合算の相場 <span class="tag">${JOB_NAMES[job]}</span>`;
+  $("areaChips").innerHTML = cities.map(c => `<span>${c}</span>`).join("");
+  if (cities.length) {
+    let B = 0, ok = true;
+    cities.forEach(c => { const b = baseB(pref, c, job); if (b) B += b.B; else ok = false; });
+    const vals = bandValues(B, state.planB);
+    $("metaArea").textContent = `基準：周辺${cities.length}市区町村の月平均応募数の合算 ${fmt(B)}件`;
+    $("chartArea").innerHTML = barChart(vals, jobColor());
+    $("tableArea").innerHTML = bandTable(vals);
+  } else {
+    $("metaArea").textContent = state.station ? "周辺エリア（半径5.5km）にデータのある市区町村がありません" : "最寄駅が選べません（市区町村の位置情報がないため）";
+    $("chartArea").innerHTML = '<div class="nodata">周辺エリアを表示できません</div>';
+    $("tableArea").innerHTML = "";
+  }
+
+  /* 時期の傾向 */
+  const scopeCities = state.trend === "area" && cities.length ? cities : [city];
+  const series = monthlySeries(pref, scopeCities, job);
+  if (series.length >= 2) {
+    const apps = series.map(d => d.apps);
+    const last3 = apps.slice(-3).reduce((s, v) => s + v, 0) / Math.min(3, apps.length);
+    const allAvg = apps.reduce((s, v) => s + v, 0) / apps.length;
+    const pct = allAvg ? Math.round((last3 / allAvg - 1) * 100) : 0;
+    const season = seasonality(job);
+    const latestYm = monthsAll().slice(-1)[0];
+    const curIdx = season[parseInt(latestYm.slice(5), 10) - 1];
+    $("trendInsight").innerHTML =
+      `直近3ヶ月の応募ペースは、全期間平均と比べて <b>${pct >= 0 ? "+" : ""}${pct}%</b> です。` +
+      `全国の${JOB_NAMES[job]}では、<b>${parseInt(latestYm.slice(5), 10)}月は年間平均比で指数 ${Math.round(curIdx)}</b>（100が平均）の時期にあたります。`;
+    $("chartTrend").innerHTML = trendChart(series);
+    $("trendMeta").textContent = `${state.trend === "area" ? "周辺エリア合算" : city} の月別 応募数と応募単価（${series[0].ym}〜${series[series.length - 1].ym}）`;
+    $("chartSeason").innerHTML = seasonChart(season);
+    $("seasonMeta").textContent = `月別の応募の出やすさ（全国・${JOB_NAMES[job]}の全期間実績から算出。100＝年間平均）`;
+  } else {
+    $("trendInsight").textContent = "時期の傾向を表示できるデータが足りません。";
+    $("chartTrend").innerHTML = ""; $("chartSeason").innerHTML = "";
+    $("trendMeta").textContent = ""; $("seasonMeta").textContent = "";
+  }
+}
+
+/* ============ 条件UI ============ */
+function fillPrefs() {
+  const prefs = PREF_ORDER.filter(p => DATA.some(r => r[1] === p));
+  $("selPref").innerHTML = prefs.map(p => `<option>${p}</option>`).join("");
+  if (!prefs.includes(state.pref)) state.pref = prefs.includes("東京都") ? "東京都" : prefs[0];
+  $("selPref").value = state.pref;
+  fillCities();
+}
+function fillCities() {
+  const cities = [...new Set(DATA.filter(r => r[1] === state.pref).map(r => r[2]))];
+  cities.sort((a, b) => {
+    const ba = baseB(state.pref, a, 0), bb = baseB(state.pref, b, 0);
+    return (bb ? bb.B : 0) - (ba ? ba.B : 0);
+  });
+  $("selCity").innerHTML = cities.map(c => `<option>${c}</option>`).join("");
+  if (!cities.includes(state.city)) state.city = cities[0];
+  $("selCity").value = state.city;
+  fillStations();
+}
+function fillStations() {
+  const sts = stationsNear(state.pref, state.city);
+  const sel = $("selStation");
+  if (!sts.length) { sel.innerHTML = "<option value=''>（利用不可）</option>"; sel.disabled = true; state.station = null; }
+  else {
+    sel.disabled = false;
+    sel.innerHTML = sts.map(s => `<option>${s.name}</option>`).join("");
+    if (!sts.some(s => s.name === state.station)) state.station = sts[0].name;
+    sel.value = state.station;
+  }
+}
+$("selPref").addEventListener("change", e => { state.pref = e.target.value; fillCities(); render(); });
+$("selCity").addEventListener("change", e => { state.city = e.target.value; fillStations(); render(); });
+$("selStation").addEventListener("change", e => { state.station = e.target.value; render(); });
+$("tabCast").addEventListener("click", () => { state.job = 0; render(); });
+$("tabHall").addEventListener("click", () => { state.job = 1; render(); });
+document.querySelectorAll(".plantoggle").forEach(t => {
+  t.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    if (t.dataset.plan === "A") state.planA = b.dataset.v; else state.planB = b.dataset.v;
+    render();
+  }));
+});
+$("trendScope").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  state.trend = b.dataset.v;
+  $("trendScope").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  render();
+}));
+$("btnPrint").addEventListener("click", () => window.print());
+
+/* ============ 取込 ============ */
+$("btnImport").addEventListener("click", () => $("importModal").classList.add("open"));
+$("closeImport").addEventListener("click", () => $("importModal").classList.remove("open"));
+$("resetData").addEventListener("click", () => {
+  localStorage.removeItem(LS_KEY);
+  DATA = window.MARKET_DATA || [];
+  $("importMsg").textContent = "初期データに戻しました。";
+  fillPrefs(); render();
+});
+$("doImport").addEventListener("click", () => {
+  const f = $("fileData").files[0];
+  if (!f) { $("importMsg").textContent = "ファイルを選んでください。"; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = new TextDecoder("utf-8").decode(reader.result).replace(/^\uFEFF/, "");
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const head = lines[0].split(",").map(h => h.trim());
+      const idx = {};
+      ["年月", "都道府県", "市区町村", "職種分類", "掲載費用（円）", "応募件数"].forEach(k => {
+        idx[k] = head.indexOf(k);
+        if (idx[k] < 0) throw new Error("項目が見つかりません：" + k);
+      });
+      const parse = line => {
+        const out = []; let cur = "", q = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+          else if (ch === '"') q = true;
+          else if (ch === ",") { out.push(cur); cur = ""; }
+          else cur += ch;
+        }
+        out.push(cur); return out;
+      };
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const c = parse(lines[i]);
+        const job = c[idx["職種分類"]] === "キャスト" ? 0 : (c[idx["職種分類"]] || "").includes("ホール") ? 1 : -1;
+        const fee = parseFloat(c[idx["掲載費用（円）"]]), apps = parseFloat(c[idx["応募件数"]]);
+        if (job < 0 || isNaN(fee) || isNaN(apps)) continue;
+        rows.push([c[idx["年月"]], c[idx["都道府県"]], c[idx["市区町村"]], job, fee, apps]);
+      }
+      if (!rows.length) throw new Error("取り込める行がありませんでした");
+      DATA = rows;
+      localStorage.setItem(LS_KEY, JSON.stringify(rows));
+      $("importMsg").textContent = `${fmt(rows.length)}件を取り込みました。`;
+      state.city = null;
+      fillPrefs(); render();
+    } catch (err) {
+      $("importMsg").textContent = "取り込めませんでした：" + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+fillPrefs();
+render();
+</script>
+<script>
+"use strict";
+/* ログインゲート（社内共有パスワード） */
+(function () {
+  const KEY = "mi_auth_v1";
+  const gate = document.getElementById("gate");
+  if (sessionStorage.getItem(KEY) === "1") { gate.classList.add("hide"); return; }
+  const tryLogin = () => {
+    if (document.getElementById("gatePw").value === "rnc@4191") {
+      sessionStorage.setItem(KEY, "1");
+      gate.classList.add("hide");
+    } else {
+      document.getElementById("gateErr").textContent = "パスワードが違います";
+    }
+  };
+  document.getElementById("gateBtn").addEventListener("click", tryLogin);
+  document.getElementById("gatePw").addEventListener("keydown", e => { if (e.key === "Enter") tryLogin(); });
+})();
+</script>
+</body>
+</html>
