@@ -635,18 +635,29 @@ function render() {
   const scopeCities = state.trend === "area" ? effAreas : [city];
   const series = monthlySeries(pref, scopeCities, job);
   if (series.length >= 2) {
-    const apps = series.map(d => d.apps);
-    const last3 = apps.slice(-3).reduce((s, v) => s + v, 0) / Math.min(3, apps.length);
-    const allAvg = apps.reduce((s, v) => s + v, 0) / apps.length;
-    const pct = allAvg ? Math.round((last3 / allAvg - 1) * 100) : 0;
     const season = seasonality(job);
     const latestYm = monthsAll().slice(-1)[0];
     const selMonth = state.seasonMonth || parseInt(latestYm.slice(5), 10);
     const curIdx = season[selMonth - 1];
     const scopeName = state.trend === "area" ? "周辺エリア" : city;
-    const recentList = series.slice(-3).map(d => `${parseInt(d.ym.slice(5), 10)}月 ${fmt(d.apps)}件`).join("・");
+    /* 前半：最近の応募単価（実数）とふだんの単価の比較 */
+    const aggCpa = rows => {
+      const f = rows.reduce((s, r) => s + r[4], 0), a = rows.reduce((s, r) => s + r[5], 0);
+      return a ? f / a : null;
+    };
+    const scoped = DATA.filter(r => r[1] === pref && scopeCities.includes(r[2]) && r[3] === job && r[4] > 0 && r[5] >= 0);
+    const recentYms = monthsAll().slice(-3);
+    const cpaAll = aggCpa(scoped);
+    const cpaRecent = aggCpa(scoped.filter(r => recentYms.includes(r[0])));
+    let head = "";
+    if (cpaAll && cpaRecent) {
+      const verdict = cpaRecent < cpaAll * 0.99 ? "今は応募を安く取れる時期です。"
+        : cpaRecent > cpaAll * 1.01 ? "今は応募単価が高めの時期です。"
+        : "ふだんと大きくは変わりません。";
+      head = `${scopeName}の最近の応募単価は <b>${fmt(cpaRecent)}円</b>（ふだんは ${fmt(cpaAll)}円）。${verdict}`;
+    }
     $("trendInsight").innerHTML =
-      `${scopeName}では、直近の応募数は <b>${recentList}</b> でした（エリア全体）。ふだんの月平均は約${fmt(allAvg)}件です。` +
+      head +
       `全国の${JOB_NAMES[job]}では、<b>${selMonth}月は年間平均比で指数 ${Math.round(curIdx)}</b>（100が平均）の時期にあたります。`;
     $("chartTrend").innerHTML = trendChart(series);
     $("trendMeta").textContent = `${state.trend === "area" ? "周辺エリア合算" : city} の月別 応募数と応募単価（${series[0].ym}〜${series[series.length - 1].ym}）`;
