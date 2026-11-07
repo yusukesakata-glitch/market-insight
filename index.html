@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
   :root{
-    --navy:#163B5B; --navy2:#25475F; --gold:#D9A94A; --gold-d:#B8933F;
+    --navy:#163B5B; --navy2:#25475F; --navy-l:#7FA3C4; --gold:#D9A94A; --gold-l:#EBCE8F;
     --bg:#F4F8FB; --card:#FFFFFF; --line:#DCE6EE; --light:#EDF5FC;
     --ink:#1E2832; --sub:#5F6973; --faint:#8B95A0;
   }
@@ -16,7 +16,6 @@
   body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
   .wrap{max-width:880px;margin:0 auto;padding:14px 14px 40px}
 
-  /* ヘッダー */
   header{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 16px}
   header img{width:34px;height:34px}
   header .ttl{font-size:17px;font-weight:800;color:var(--navy);letter-spacing:.02em;line-height:1.25}
@@ -31,7 +30,6 @@
   .meta{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
   .disc{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.6}
 
-  /* 条件選択 */
   .steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
   .steps span{font-size:11px;font-weight:700;color:var(--navy2);background:var(--light);border-radius:999px;padding:4px 11px}
   .selrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -44,7 +42,6 @@
   .jobtab.on-cast{background:var(--navy);border-color:var(--navy);color:#fff}
   .jobtab.on-hall{background:var(--gold);border-color:var(--gold);color:#fff}
 
-  /* プラン切替・グラフ */
   .plantoggle{display:inline-flex;background:var(--light);border-radius:999px;padding:3px;gap:2px}
   .plantoggle button{border:0;background:transparent;font-size:12px;font-weight:700;color:var(--sub);border-radius:999px;padding:6px 14px;cursor:pointer}
   .plantoggle button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(22,59,91,.18)}
@@ -52,15 +49,19 @@
   .svgbox{margin-top:8px}
   svg{display:block;width:100%;height:auto}
   table.bands{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
-  table.bands th,table.bands td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right}
+  table.bands th,table.bands td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
   table.bands th:first-child,table.bands td:first-child{text-align:left}
   table.bands th{font-size:11px;color:var(--sub);font-weight:700}
-  table.bands td.v{font-weight:800;color:var(--navy)}
+  table.bands td.v{font-weight:800;color:var(--navy);white-space:nowrap}
+  table.bands tr.hl td{background:var(--light)}
+  .badge{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;background:var(--navy);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:1px}
+  .badge.gold{background:var(--gold)}
+  .distbar{position:relative;height:8px;background:#EFF4F8;border-radius:999px;min-width:90px}
+  .distbar i{position:absolute;top:0;height:8px;border-radius:999px}
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .chips span{font-size:11.5px;background:var(--light);color:var(--navy2);border-radius:999px;padding:4px 11px;font-weight:600}
   .nodata{padding:26px 10px;text-align:center;color:var(--sub);font-size:13px;background:var(--bg);border-radius:12px;margin-top:10px}
 
-  /* 時期の傾向 */
   .insight{background:var(--light);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.7;margin-top:10px}
   .insight b{color:var(--navy)}
   .scopetoggle{display:inline-flex;background:var(--light);border-radius:999px;padding:3px;gap:2px}
@@ -69,7 +70,6 @@
 
   footer.site{margin-top:18px;font-size:11px;color:var(--faint);line-height:1.7;padding:0 4px}
 
-  /* モーダル */
   .modal{position:fixed;inset:0;background:rgba(22,35,48,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
   .modal.open{display:flex}
   .mbox{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:20px 18px 26px;max-height:88vh;overflow:auto}
@@ -79,11 +79,9 @@
   .btn{border:0;border-radius:999px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer}
   .btn.navy{background:var(--navy);color:#fff}
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--navy2)}
-  .btn.danger{background:#fff;border:1px solid #E5B4B4;color:#B03A3A}
   input[type=file]{font-size:12.5px;max-width:100%}
 
   .printhead{display:none}
-  /* ログインゲート */
   .gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}
   .gate.hide{display:none}
   .gbox{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 24px;width:100%;max-width:360px;text-align:center}
@@ -96,6 +94,7 @@
     body{background:#fff}
     .wrap{max-width:none;padding:0}
     header,.noprint{display:none!important}
+    .gate{display:none!important}
     .card{border:0;border-radius:0;margin-top:0;padding:6mm 2mm}
     .pagebreak{page-break-before:always}
     .printhead{display:block;padding:0 2mm 4mm}
@@ -140,20 +139,20 @@
   <div class="card" id="cardSingle">
     <div class="charthead">
       <h2 id="titleSingle">市区町村単体の相場</h2>
-      <div class="plantoggle noprint" data-plan="A">
+      <div class="plantoggle noprint">
         <button data-v="std">スタンダード</button><button data-v="prem">プレミアム</button>
       </div>
     </div>
     <div class="meta" id="metaSingle"></div>
     <div class="svgbox" id="chartSingle"></div>
     <div id="tableSingle"></div>
-    <div class="disc">※想定応募数は、実績データ（月平均応募数）をもとに月給帯ごとの係数で算出した見込みです。募集条件によって変化し、応募数を保証するものではありません。</div>
+    <div class="disc">※ この数値はあくまで見込みであり、募集条件によって変化します。応募数を保証するものではありません。</div>
   </div>
 
   <div class="card pagebreak" id="cardArea">
     <div class="charthead">
       <h2 id="titleArea">周辺エリア合算の相場</h2>
-      <div class="plantoggle noprint" data-plan="B">
+      <div class="plantoggle noprint">
         <button data-v="std">スタンダード</button><button data-v="prem">プレミアム</button>
       </div>
     </div>
@@ -161,7 +160,7 @@
     <div class="meta" id="metaArea"></div>
     <div class="svgbox" id="chartArea"></div>
     <div id="tableArea"></div>
-    <div class="disc">※周辺エリアは、最寄駅から半径5.5km圏内の市区町村（データがあるもの）の合算です。</div>
+    <div class="disc">※ この数値はあくまで見込みであり、募集条件によって変化します。応募数を保証するものではありません。</div>
   </div>
 
   <div class="card noprint" id="cardTrend">
@@ -179,7 +178,7 @@
   </div>
 
   <footer class="site">
-    算出方法：基準応募数＝対象エリア×職種の月平均応募数（直近12ヶ月分がある場合はその期間）。想定応募数＝基準応募数×月給帯係数（帯の中央値÷15万円の0.8乗）。データは取り込んだ実績（掲載費用・応募件数）に基づきます。
+    算出方法：「想定応募数」は、対象エリア×職種の応募単価（掲載費用合計÷応募数合計、全期間の実績）をもとに、費用帯の中央値÷応募単価で算出した目安です。幅は±3件（想定100件以上は−15〜−10件）で表示しています。
   </footer>
 </div>
 
@@ -210,6 +209,7 @@
 </div>
 
 <script src="data.js"></script>
+<script src="station-maps.js"></script>
 <script src="centroids.js"></script>
 <script src="stations.js"></script>
 <script>
@@ -223,42 +223,132 @@ try {
 } catch (e) {}
 const JOB_NAMES = ["キャスト", "ホールスタッフ・黒服など"];
 const PREF_ORDER = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
-const STD_BANDS = [[5,7],[7,10],[10,15],[15,20],[20,25],[25,30]];
-const PREM_BANDS = [[5,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50]];
+const MAPS = window.STATION_MAPS || { STATION_DATA: {}, CITY_STATIONS_MAP: {}, STATION_AREA_MAP: {}, TOKYO_ADJACENT_WARDS: {}, TARGET_PREFECTURES: [] };
+/* 費用帯（元のツールの定義どおり） */
+const STD_BANDS = [
+  { label: "5〜7万円", mid: 60000 }, { label: "7〜10万円", mid: 85000 },
+  { label: "10〜15万円", mid: 125000 }, { label: "15〜20万円", mid: 175000 },
+  { label: "20〜25万円", mid: 225000 }, { label: "25〜30万円", mid: 275000 },
+];
+const PREM_BANDS = [
+  { label: "5〜10万円", mid: 75000 }, { label: "10〜15万円", mid: 125000 },
+  { label: "15〜20万円", mid: 175000 }, { label: "20〜25万円", mid: 225000 },
+  { label: "25〜30万円", mid: 275000 }, { label: "30〜35万円", mid: 325000 },
+  { label: "35〜40万円", mid: 375000 }, { label: "40〜45万円", mid: 425000 },
+  { label: "45〜50万円", mid: 475000 },
+];
 const AREA_RADIUS_KM = 5.5;
 
-const state = { pref: null, city: null, station: null, job: 0, planA: "std", planB: "std", trend: "single" };
+const state = { pref: null, city: null, station: null, job: 0, plan: "std", trend: "single" };
 const $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString("ja-JP");
-
 function monthsAll() { return [...new Set(DATA.map(r => r[0]))].sort(); }
 function dataPeriod() { const m = monthsAll(); return m.length ? [m[0], m[m.length - 1]] : null; }
 
-/* 基準応募数：直近12ヶ月（存在する月）の月平均 */
-function baseB(pref, city, job) {
-  const rows = DATA.filter(r => r[1] === pref && r[2] === city && r[3] === job);
-  if (!rows.length) return null;
-  const byMonth = {};
-  rows.forEach(r => { byMonth[r[0]] = (byMonth[r[0]] || 0) + r[5]; });
-  const ms = Object.keys(byMonth).sort();
-  const use = ms.slice(-12);
-  const avg = use.reduce((s, m) => s + byMonth[m], 0) / use.length;
-  return { B: avg, months: use.length, from: use[0], to: use[use.length - 1] };
-}
-function coef(mid) { return Math.pow(mid / 15, 0.8); }
-function bandValues(B, plan) {
+/* ============ 元の計算式：応募単価ベースの想定応募数 ============ */
+function forecast(pref, cities, job, plan) {
+  const f = DATA.filter(r => r[1] === pref && cities.includes(r[2]) && r[3] === job && r[4] > 0 && r[5] >= 0);
+  if (!f.length) return null;
+  const fee = f.reduce((s, r) => s + r[4], 0);
+  const apps = f.reduce((s, r) => s + r[5], 0);
+  if (!apps) return null;
+  const cpa = fee / apps;
   const bands = plan === "prem" ? PREM_BANDS : STD_BANDS;
-  return bands.map(([a, b]) => ({ label: a + "〜" + b + "万円", mid: (a + b) / 2, v: Math.round(B * coef((a + b) / 2)) }));
+  const rows = bands.map(b => {
+    const est = Math.round(b.mid / cpa);
+    let min, max;
+    if (est >= 100) { min = Math.max(0, est - 15); max = est - 10; }
+    else { min = Math.max(0, est - 3); max = est + 3; }
+    return { label: b.label, short: b.label.replace("万円", ""), est, min, max, hl: false };
+  });
+  const maxEst = Math.max(...rows.map(r => r.est));
+  const hi = rows.findIndex(r => r.est === maxEst);
+  if (hi >= 0) rows[hi].hl = true;
+  return { cpa, n: f.length, totalApps: apps, rows };
 }
 
-/* ============ 地理 ============ */
+/* ============ 駅・周辺エリア（元のマップを都道府県で絞って使用） ============ */
+function dataCities(pref) { return [...new Set(DATA.filter(r => r[1] === pref).map(r => r[2]))]; }
+/* STATION_DATAのキー（大阪市中央区など）→ データ側の市区町村名（中央区など） */
+function keyToDataCity(pref, key) {
+  const cities = dataCities(pref);
+  if (cities.includes(key)) return key;
+  const suffix = cities.filter(c => key.endsWith(c)).sort((a, b) => b.length - a.length)[0];
+  if (suffix) return suffix;
+  const prefix = cities.filter(c => key.startsWith(c)).sort((a, b) => b.length - a.length)[0];
+  return prefix || null;
+}
+function stationKeysFor(pref, city) {
+  const sd = MAPS.STATION_DATA[pref] || {};
+  return Object.keys(sd).filter(k => keyToDataCity(pref, k) === city);
+}
+function stationsFor(pref, city) {
+  const sd = MAPS.STATION_DATA[pref] || {};
+  const keys = stationKeysFor(pref, city);
+  let names = [];
+  keys.forEach(k => { names = names.concat(sd[k]); });
+  if (names.length) return [...new Set(names)].map(name => ({ name, lat: null, lng: null }));
+  /* フォールバック：位置情報から近い駅 */
+  return stationsNear(pref, city).map(s => ({ name: s.name.replace(/駅$/, ""), lat: s.lat, lng: s.lng }));
+}
+function resolveInPref(pref, names) {
+  const cities = dataCities(pref);
+  const out = [];
+  names.forEach(nm => {
+    if (cities.includes(nm)) { if (!out.includes(nm)) out.push(nm); return; }
+    const sd = MAPS.STATION_DATA[pref] || {};
+    const key = Object.keys(sd).find(k => k === nm) || Object.keys(sd).find(k => keyToDataCity(pref, k) === nm);
+    if (key) { const dc = keyToDataCity(pref, key); if (dc && !out.includes(dc)) out.push(dc); }
+  });
+  return out;
+}
+function areasForStation(pref, city, stationObj) {
+  if (!stationObj) return [city];
+  const station = stationObj.name;
+  /* 1. 駅ごとに定義された周辺エリア */
+  const defined = MAPS.STATION_AREA_MAP[station];
+  if (defined && defined.length) {
+    const resolved = resolveInPref(pref, defined);
+    if (resolved.length >= 2 || (resolved.length === 1 && resolved[0] !== city)) {
+      return [city, ...resolved.filter(c => c !== city)];
+    }
+  }
+  /* 2. STATION_DATAを都道府県内で逆引き */
+  const sd = MAPS.STATION_DATA[pref] || {};
+  let ownerKey = null;
+  for (const k of Object.keys(sd)) { if (sd[k].includes(station)) { ownerKey = k; break; } }
+  if (ownerKey) {
+    if (pref === "東京都" && MAPS.TOKYO_ADJACENT_WARDS[city]) {
+      const adj = MAPS.TOKYO_ADJACENT_WARDS[city].filter(c => MAPS.TOKYO_ADJACENT_WARDS[c] !== undefined || c.endsWith("市"));
+      return [city, ...adj.slice(0, 4)];
+    }
+    const m = ownerKey.match(/^(.+市)/);
+    if (m) {
+      const sibs = Object.keys(sd).filter(k => k.startsWith(m[1]) && k !== ownerKey)
+        .map(k => keyToDataCity(pref, k)).filter(Boolean).filter(c => c !== city);
+      if (sibs.length) return [city, ...[...new Set(sibs)].slice(0, 4)];
+    }
+    const others = Object.keys(sd).map(k => keyToDataCity(pref, k)).filter(Boolean).filter(c => c !== city);
+    if (others.length) return [city, ...[...new Set(others)].slice(0, 4)];
+    return [city];
+  }
+  /* 3. フォールバック：駅座標から半径5.5km */
+  if (stationObj.lat != null) {
+    const cities = dataCities(pref).filter(ct => {
+      const c = cityCentroid(pref, ct);
+      return c && havKm([stationObj.lat, stationObj.lng], c) <= AREA_RADIUS_KM;
+    });
+    if (cities.length) return cities.includes(city) ? cities : [city, ...cities];
+  }
+  return [city];
+}
+
+/* ============ 地理（フォールバック用） ============ */
 function havKm(a, b) {
   const R = 6371, dLa = (b[0] - a[0]) * Math.PI / 180, dLo = (b[1] - a[1]) * Math.PI / 180;
   const h = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLo / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-const STATION_MAP = {};
-(window.STATIONS || []).forEach(s => { STATION_MAP[s[0]] = [s[1], s[2]]; });
 function cityCentroid(pref, city) {
   const c = (window.CITY_CENTROIDS || {})[pref + "|" + city];
   return c ? [c[0], c[1]] : null;
@@ -267,41 +357,44 @@ function stationsNear(pref, city) {
   const c = cityCentroid(pref, city);
   if (!c) return [];
   return (window.STATIONS || [])
-    .map(s => ({ name: s[0], d: havKm(c, [s[1], s[2]]) }))
+    .map(s => ({ name: s[0], lat: s[1], lng: s[2], d: havKm(c, [s[1], s[2]]) }))
     .filter(s => s.d <= 8)
     .sort((a, b) => a.d - b.d)
     .slice(0, 40);
 }
-function areaCities(pref, stationName) {
-  const sp = STATION_MAP[stationName];
-  if (!sp) return [];
-  const cities = [...new Set(DATA.filter(r => r[1] === pref).map(r => r[2]))];
-  return cities.filter(ct => { const c = cityCentroid(pref, ct); return c && havKm(sp, c) <= AREA_RADIUS_KM; });
-}
 </script>
 <script>
 "use strict";
-/* ============ グラフ ============ */
-function barChart(values, color) {
+/* ============ グラフ・表 ============ */
+function jobColor() { return state.job === 0 ? "#163B5B" : "#D9A94A"; }
+function jobLight() { return state.job === 0 ? "#7FA3C4" : "#EBCE8F"; }
+function barChart(rows) {
   const W = 640, H = 252, base = 216, top = 26;
-  const max = Math.max(...values.map(d => d.v), 1);
-  const n = values.length, slot = W / n, bw = Math.min(54, slot * 0.58);
+  const max = Math.max(...rows.map(d => d.max), 1);
+  const n = rows.length, slot = W / n, bw = Math.min(54, slot * 0.58);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
   s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
-  values.forEach((d, i) => {
-    const h = Math.max(2, (base - top) * d.v / max);
+  rows.forEach((d, i) => {
+    const h = Math.max(2, (base - top) * d.est / max);
     const x = slot * i + (slot - bw) / 2, y = base - h;
-    s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="6" fill="${color}"/>`;
-    s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${(y - 7).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#163B5B">${fmt(d.v)}</text>`;
-    const parts = d.label.replace("万円", "").split("〜");
+    s += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="6" fill="${d.hl ? jobColor() : jobLight()}"/>`;
+    s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${(y - 7).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#163B5B">${fmt(d.est)}</text>`;
+    const parts = d.short.split("〜");
     s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${base + 17}" text-anchor="middle" font-size="11.5" fill="#5F6973">${parts[0]}〜${parts[1]}</text>`;
   });
-  s += `<text x="${W - 2}" y="${base + 31}" text-anchor="end" font-size="10.5" fill="#8B95A0">月給帯（万円）／想定応募数（件）</text>`;
+  s += `<text x="${W - 2}" y="${base + 31}" text-anchor="end" font-size="10.5" fill="#8B95A0">費用帯（万円）／想定応募数（件）</text>`;
   return s + "</svg>";
 }
-function bandTable(values) {
-  let s = '<table class="bands"><tr><th>月給帯</th><th>想定応募数</th></tr>';
-  values.forEach(d => { s += `<tr><td>${d.label}</td><td class="v">${fmt(d.v)}件</td></tr>`; });
+function bandTable(rows) {
+  const maxMax = Math.max(...rows.map(d => d.max), 1);
+  let s = '<table class="bands"><tr><th>費用帯</th><th>想定応募数（目安）</th><th style="text-align:left">応募分布</th></tr>';
+  rows.forEach(d => {
+    const l = (d.min / maxMax * 100).toFixed(1), w = Math.max(1.5, (d.max - d.min) / maxMax * 100).toFixed(1);
+    const range = d.min === d.max ? fmt(d.est) : `${fmt(d.min)}〜${fmt(d.max)}`;
+    s += `<tr class="${d.hl ? "hl" : ""}"><td>${d.label}${d.hl ? `<span class="badge ${state.job === 1 ? "gold" : ""}">最多</span>` : ""}</td>` +
+      `<td class="v">${range}件</td>` +
+      `<td><div class="distbar"><i style="left:${l}%;width:${w}%;background:${jobColor()}"></i></div></td></tr>`;
+  });
   return s + "</table>";
 }
 function trendChart(series) {
@@ -320,9 +413,10 @@ function trendChart(series) {
       s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${base + 16}" text-anchor="middle" font-size="10" fill="#5F6973">${d.ym.slice(2).replace("-", "/")}</text>`;
   });
   if (fees.length > 1) {
-    const pts = series.map((d, i) => d.cpa == null ? null : `${(slot * i + slot / 2).toFixed(1)},${(base - (base - top) * (d.cpa - minC) / Math.max(1, maxC - minC)).toFixed(1)}`).filter(Boolean);
+    const y = v => base - (base - top) * (v - minC) / Math.max(1, maxC - minC);
+    const pts = series.map((d, i) => d.cpa == null ? null : `${(slot * i + slot / 2).toFixed(1)},${y(d.cpa).toFixed(1)}`).filter(Boolean);
     s += `<polyline points="${pts.join(" ")}" fill="none" stroke="#D9A94A" stroke-width="2.5"/>`;
-    series.forEach((d, i) => { if (d.cpa != null) s += `<circle cx="${(slot * i + slot / 2).toFixed(1)}" cy="${(base - (base - top) * (d.cpa - minC) / Math.max(1, maxC - minC)).toFixed(1)}" r="3" fill="#D9A94A"/>`; });
+    series.forEach((d, i) => { if (d.cpa != null) s += `<circle cx="${(slot * i + slot / 2).toFixed(1)}" cy="${y(d.cpa).toFixed(1)}" r="3" fill="#D9A94A"/>`; });
     s += `<text x="2" y="16" font-size="10.5" fill="#B8933F">― 応募単価（費用÷応募）</text>`;
   }
   s += `<text x="${W - 2}" y="16" text-anchor="end" font-size="10.5" fill="#5F6973">棒：応募数（件）</text>`;
@@ -344,7 +438,7 @@ function seasonChart(idx) {
   return s + "</svg>";
 }
 
-/* ============ 集計 ============ */
+/* ============ 集計（時期の傾向） ============ */
 function monthlySeries(pref, cities, job) {
   const map = {};
   DATA.filter(r => r[1] === pref && cities.includes(r[2]) && r[3] === job)
@@ -364,7 +458,20 @@ function seasonality(job) {
 }
 
 /* ============ 描画 ============ */
-function jobColor() { return state.job === 0 ? "#163B5B" : "#D9A94A"; }
+let currentStations = [];
+let currentAreas = [];
+function selectedStationObj() { return currentStations.find(s => s.name === state.station) || null; }
+function renderForecast(elChart, elTable, elMeta, fc) {
+  if (fc) {
+    elMeta.textContent = `応募単価 ${fmt(fc.cpa)}円／件（全期間 ${fc.n}ヶ月分の実績・応募総数 ${fmt(fc.totalApps)}件から算出）`;
+    elChart.innerHTML = barChart(fc.rows);
+    elTable.innerHTML = bandTable(fc.rows);
+  } else {
+    elMeta.textContent = "";
+    elChart.innerHTML = '<div class="nodata">この条件のデータがありません</div>';
+    elTable.innerHTML = "";
+  }
+}
 function render() {
   const { pref, city, job } = state;
   const per = dataPeriod();
@@ -372,44 +479,20 @@ function render() {
   $("tabCast").className = "jobtab" + (job === 0 ? " on-cast" : "");
   $("tabHall").className = "jobtab" + (job === 1 ? " on-hall" : "");
   document.querySelectorAll(".plantoggle").forEach(t => {
-    const key = t.dataset.plan === "A" ? state.planA : state.planB;
-    t.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === key));
+    t.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === state.plan));
   });
+  const stObj = selectedStationObj();
+  currentAreas = areasForStation(pref, city, stObj);
   $("printSub").textContent = `${pref} ${city}／${JOB_NAMES[job]}／データ期間：${per ? per[0] + "〜" + per[1] : ""}`;
 
-  /* 単体 */
-  const b1 = baseB(pref, city, job);
   $("titleSingle").innerHTML = `${city} 単体の相場 <span class="tag">${JOB_NAMES[job]}</span>`;
-  if (b1) {
-    const vals = bandValues(b1.B, state.planA);
-    $("metaSingle").textContent = `基準：月平均応募数 ${fmt(b1.B)}件（${b1.from}〜${b1.to} の${b1.months}ヶ月）`;
-    $("chartSingle").innerHTML = barChart(vals, jobColor());
-    $("tableSingle").innerHTML = bandTable(vals);
-  } else {
-    $("metaSingle").textContent = "";
-    $("chartSingle").innerHTML = '<div class="nodata">この条件のデータがありません</div>';
-    $("tableSingle").innerHTML = "";
-  }
+  renderForecast($("chartSingle"), $("tableSingle"), $("metaSingle"), forecast(pref, [city], job, state.plan));
 
-  /* 周辺 */
-  const cities = state.station ? areaCities(pref, state.station) : [];
-  $("titleArea").innerHTML = `${state.station || "周辺"} 周辺エリア合算の相場 <span class="tag">${JOB_NAMES[job]}</span>`;
-  $("areaChips").innerHTML = cities.map(c => `<span>${c}</span>`).join("");
-  if (cities.length) {
-    let B = 0, ok = true;
-    cities.forEach(c => { const b = baseB(pref, c, job); if (b) B += b.B; else ok = false; });
-    const vals = bandValues(B, state.planB);
-    $("metaArea").textContent = `基準：周辺${cities.length}市区町村の月平均応募数の合算 ${fmt(B)}件`;
-    $("chartArea").innerHTML = barChart(vals, jobColor());
-    $("tableArea").innerHTML = bandTable(vals);
-  } else {
-    $("metaArea").textContent = state.station ? "周辺エリア（半径5.5km）にデータのある市区町村がありません" : "最寄駅が選べません（市区町村の位置情報がないため）";
-    $("chartArea").innerHTML = '<div class="nodata">周辺エリアを表示できません</div>';
-    $("tableArea").innerHTML = "";
-  }
+  $("titleArea").innerHTML = `${state.station ? state.station + "駅" : "周辺"} 周辺エリア合算の相場 <span class="tag">${JOB_NAMES[job]}</span>`;
+  $("areaChips").innerHTML = currentAreas.map(c => `<span>${c}</span>`).join("");
+  renderForecast($("chartArea"), $("tableArea"), $("metaArea"), forecast(pref, currentAreas, job, state.plan));
 
-  /* 時期の傾向 */
-  const scopeCities = state.trend === "area" && cities.length ? cities : [city];
+  const scopeCities = state.trend === "area" ? currentAreas : [city];
   const series = monthlySeries(pref, scopeCities, job);
   if (series.length >= 2) {
     const apps = series.map(d => d.apps);
@@ -442,10 +525,10 @@ function fillPrefs() {
   fillCities();
 }
 function fillCities() {
-  const cities = [...new Set(DATA.filter(r => r[1] === state.pref).map(r => r[2]))];
+  const cities = dataCities(state.pref);
   cities.sort((a, b) => {
-    const ba = baseB(state.pref, a, 0), bb = baseB(state.pref, b, 0);
-    return (bb ? bb.B : 0) - (ba ? ba.B : 0);
+    const fa = forecast(state.pref, [a], 0, "std"), fb = forecast(state.pref, [b], 0, "std");
+    return (fb ? fb.totalApps : 0) - (fa ? fa.totalApps : 0);
   });
   $("selCity").innerHTML = cities.map(c => `<option>${c}</option>`).join("");
   if (!cities.includes(state.city)) state.city = cities[0];
@@ -453,26 +536,23 @@ function fillCities() {
   fillStations();
 }
 function fillStations() {
-  const sts = stationsNear(state.pref, state.city);
+  currentStations = stationsFor(state.pref, state.city);
   const sel = $("selStation");
-  if (!sts.length) { sel.innerHTML = "<option value=''>（利用不可）</option>"; sel.disabled = true; state.station = null; }
+  if (!currentStations.length) { sel.innerHTML = "<option value=''>（利用不可）</option>"; sel.disabled = true; state.station = null; }
   else {
     sel.disabled = false;
-    sel.innerHTML = sts.map(s => `<option>${s.name}</option>`).join("");
-    if (!sts.some(s => s.name === state.station)) state.station = sts[0].name;
-    sel.value = state.station;
+    sel.innerHTML = currentStations.map(s => `<option>${s.name}駅</option>`).join("");
+    if (!currentStations.some(s => s.name === state.station)) state.station = currentStations[0].name;
+    sel.value = state.station + "駅";
   }
 }
 $("selPref").addEventListener("change", e => { state.pref = e.target.value; fillCities(); render(); });
 $("selCity").addEventListener("change", e => { state.city = e.target.value; fillStations(); render(); });
-$("selStation").addEventListener("change", e => { state.station = e.target.value; render(); });
+$("selStation").addEventListener("change", e => { state.station = e.target.value.replace(/駅$/, ""); render(); });
 $("tabCast").addEventListener("click", () => { state.job = 0; render(); });
 $("tabHall").addEventListener("click", () => { state.job = 1; render(); });
 document.querySelectorAll(".plantoggle").forEach(t => {
-  t.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-    if (t.dataset.plan === "A") state.planA = b.dataset.v; else state.planB = b.dataset.v;
-    render();
-  }));
+  t.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { state.plan = b.dataset.v; render(); }));
 });
 $("trendScope").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
   state.trend = b.dataset.v;
@@ -496,7 +576,7 @@ $("doImport").addEventListener("click", () => {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const text = new TextDecoder("utf-8").decode(reader.result).replace(/^\uFEFF/, "");
+      const text = new TextDecoder("utf-8").decode(reader.result).replace(/^﻿/, "");
       const lines = text.split(/\r?\n/).filter(l => l.trim());
       const head = lines[0].split(",").map(h => h.trim());
       const idx = {};
