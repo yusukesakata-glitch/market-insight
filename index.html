@@ -203,6 +203,7 @@
       <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="append"> 既存データに追加</label>
     </div>
     <p style="margin-top:6px">月次更新の場合は「置き換え」を推奨します。「追加」は、同じ年月・エリア・職種の行がある場合は上書きされるので、同じファイルを2回取り込んでも二重計上にはなりません。</p>
+    <p style="margin-top:6px">※ 取り込みの反映はこの端末だけです。全員への配布は本体データの更新で行われ、本体の方が新しい場合は、次に開いたときに自動で本体データに切り替わります。</p>
     <div class="row"><input type="file" id="fileData" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>
     <div class="row">
       <button class="btn navy" id="doImport">取り込む</button>
@@ -226,9 +227,23 @@
 /* ============ データ ============ */
 const LS_KEY = "mi_data_v1";
 let DATA = window.MARKET_DATA || [];
+let DATA_VERSION = (window.MARKET_DATA_META || {}).version || 0;
 try {
   const saved = localStorage.getItem(LS_KEY);
-  if (saved) { const p = JSON.parse(saved); if (Array.isArray(p) && p.length) DATA = p; }
+  if (saved) {
+    const p = JSON.parse(saved);
+    if (Array.isArray(p)) {
+      /* 旧形式（配列のみ）の保存は本体データで置き換える */
+      localStorage.setItem(LS_KEY, JSON.stringify({ version: DATA_VERSION, rows: DATA }));
+    } else if (p && Array.isArray(p.rows) && p.rows.length) {
+      if ((p.version || 0) > DATA_VERSION) {
+        DATA = p.rows; DATA_VERSION = p.version;
+      } else {
+        /* 本体の方が新しい → 自動で本体データを採用 */
+        localStorage.setItem(LS_KEY, JSON.stringify({ version: DATA_VERSION, rows: DATA }));
+      }
+    }
+  }
 } catch (e) {}
 const JOB_NAMES = ["キャスト", "ホールスタッフ・黒服など"];
 const PREF_ORDER = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
@@ -484,7 +499,8 @@ function renderForecast(elChart, elTable, elMeta, fc) {
 function render() {
   const { pref, city, job } = state;
   const per = dataPeriod();
-  $("dataMeta").textContent = per ? `データ期間：${per[0]}〜${per[1]}（全${fmt(DATA.length)}件）` : "";
+  const verDate = DATA_VERSION ? new Date(DATA_VERSION).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" }) : "";
+  $("dataMeta").textContent = per ? `データ期間：${per[0]}〜${per[1]}（全${fmt(DATA.length)}件）${verDate ? "／データ版：" + verDate : ""}` : "";
   $("tabCast").className = "jobtab" + (job === 0 ? " on-cast" : "");
   $("tabHall").className = "jobtab" + (job === 1 ? " on-hall" : "");
   document.querySelectorAll(".plantoggle").forEach(t => {
@@ -576,6 +592,7 @@ $("closeImport").addEventListener("click", () => $("importModal").classList.remo
 $("resetData").addEventListener("click", () => {
   localStorage.removeItem(LS_KEY);
   DATA = window.MARKET_DATA || [];
+  DATA_VERSION = (window.MARKET_DATA_META || {}).version || 0;
   $("importMsg").textContent = "初期データに戻しました。";
   fillPrefs(); render();
 });
@@ -738,7 +755,8 @@ $("doImport").addEventListener("click", async () => {
       DATA = rows;
       $("importMsg").textContent = `${fmt(rows.length)}件を取り込みました（置き換え）。`;
     }
-    localStorage.setItem(LS_KEY, JSON.stringify(DATA));
+    DATA_VERSION = Date.now();
+    localStorage.setItem(LS_KEY, JSON.stringify({ version: DATA_VERSION, rows: DATA }));
     state.city = null;
     fillPrefs(); render();
   } catch (err) {
