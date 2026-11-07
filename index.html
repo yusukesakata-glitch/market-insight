@@ -644,8 +644,9 @@ function render() {
     const selMonth = state.seasonMonth || parseInt(latestYm.slice(5), 10);
     const curIdx = season[selMonth - 1];
     const scopeName = state.trend === "area" ? "周辺エリア" : city;
+    const recentList = series.slice(-3).map(d => `${parseInt(d.ym.slice(5), 10)}月 ${fmt(d.apps)}件`).join("・");
     $("trendInsight").innerHTML =
-      `${scopeName}では、最近3ヶ月の応募は月平均 <b>約${fmt(last3)}件</b> で、全期間の平均（月 約${fmt(allAvg)}件）の <b>約${(allAvg ? last3 / allAvg : 0).toFixed(1)}倍</b> です。` +
+      `${scopeName}では、直近の応募数は <b>${recentList}</b> でした（エリア全体）。ふだんの月平均は約${fmt(allAvg)}件です。` +
       `全国の${JOB_NAMES[job]}では、<b>${selMonth}月は年間平均比で指数 ${Math.round(curIdx)}</b>（100が平均）の時期にあたります。`;
     $("chartTrend").innerHTML = trendChart(series);
     $("trendMeta").textContent = `${state.trend === "area" ? "周辺エリア合算" : city} の月別 応募数と応募単価（${series[0].ym}〜${series[series.length - 1].ym}）`;
