@@ -464,7 +464,7 @@ function jobColor() { return state.job === 0 ? "#163B5B" : "#D9A94A"; }
 function jobLight() { return state.job === 0 ? "#7FA3C4" : "#EBCE8F"; }
 function barChart(rows) {
   const W = 640, H = 258, base = 216, top = 46;
-  const max = Math.max(...rows.map(d => d.max), 1);
+  const max = Math.max(...rows.map(d => Math.max(d.est, d.max)), 1);
   const n = rows.length, slot = W / n, bw = Math.min(54, slot * 0.58);
   const Y = v => base - (base - top) * v / max;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
@@ -477,7 +477,7 @@ function barChart(rows) {
     s += `<line x1="${(cx - 7).toFixed(1)}" y1="${Y(d.max).toFixed(1)}" x2="${(cx + 7).toFixed(1)}" y2="${Y(d.max).toFixed(1)}" stroke="#163B5B" stroke-width="2"/>`;
     s += `<line x1="${(cx - 7).toFixed(1)}" y1="${Y(d.min).toFixed(1)}" x2="${(cx + 7).toFixed(1)}" y2="${Y(d.min).toFixed(1)}" stroke="#163B5B" stroke-width="2"/>`;
     const lab = d.min === d.max ? fmt(d.est) : `${fmt(d.min)}〜${fmt(d.max)}`;
-    s += `<text x="${cx.toFixed(1)}" y="${(Y(d.max) - 7).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="800" fill="#163B5B">${lab}</text>`;
+    s += `<text x="${cx.toFixed(1)}" y="${(Y(Math.max(d.est, d.max)) - 7).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="800" fill="#163B5B">${lab}</text>`;
     const parts = d.short.split("〜");
     s += `<text x="${cx.toFixed(1)}" y="${base + 17}" text-anchor="middle" font-size="11.5" fill="#5F6973">${parts[0]}〜${parts[1]}</text>`;
   });
