@@ -197,10 +197,19 @@
 <div class="modal" id="importModal">
   <div class="mbox">
     <h3>データ取込</h3>
-    <p>相場データのCSVファイルを取り込みます（項目：年月・都道府県・市区町村・職種分類・掲載費用（円）・応募件数）。取り込むと、この端末のデータはファイルの内容に置き換わります。</p>
-    <div class="row"><input type="file" id="fileData" accept=".csv,text/csv"></div>
+    <p>相場データのファイルを取り込みます（項目：年月・都道府県・市区町村・職種分類・掲載費用（円）・応募件数）。CSV / Excel（.xlsx）対応。</p>
+    <div class="row" style="gap:16px">
+      <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="replace" checked> 既存データを置き換え（推奨）</label>
+      <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="append"> 既存データに追加</label>
+    </div>
+    <p style="margin-top:6px">月次更新の場合は「置き換え」を推奨します。「追加」は、同じ年月・エリア・職種の行がある場合は上書きされるので、同じファイルを2回取り込んでも二重計上にはなりません。</p>
+    <div class="row"><input type="file" id="fileData" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>
     <div class="row">
       <button class="btn navy" id="doImport">取り込む</button>
+      <button class="btn ghost" id="dlTemplate">テンプレートをダウンロード</button>
+      <button class="btn ghost" id="exportData">現在のデータを書き出し</button>
+    </div>
+    <div class="row">
       <button class="btn ghost" id="resetData">初期データに戻す</button>
       <button class="btn ghost" id="closeImport">閉じる</button>
     </div>
@@ -570,50 +579,171 @@ $("resetData").addEventListener("click", () => {
   $("importMsg").textContent = "初期データに戻しました。";
   fillPrefs(); render();
 });
-$("doImport").addEventListener("click", () => {
+function downloadBlob(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$("dlTemplate").addEventListener("click", () => {
+  const csv = "年月,都道府県,市区町村,職種分類,掲載費用（円）,応募件数\n" +
+    "2024-04,東京都,渋谷区,キャスト,350000,42\n" +
+    "2024-04,東京都,渋谷区,ホールスタッフ・黒服など,120000,55\n";
+  downloadBlob(new Blob(["\uFEFF" + csv], { type: "text/csv" }), "相場データ_テンプレート.csv");
+});
+$("exportData").addEventListener("click", () => {
+  const head = "年月,都道府県,市区町村,職種分類,掲載費用（円）,応募件数";
+  const lines = DATA.map(r => [r[0], r[1], r[2], JOB_NAMES[r[3]], r[4], r[5]].join(","));
+  downloadBlob(new Blob(["\uFEFF" + head + "\n" + lines.join("\n") + "\n"], { type: "text/csv" }), "相場データ_書き出し.csv");
+  $("importMsg").textContent = `${fmt(DATA.length)}件を書き出しました。`;
+});
+function parseCsvLine(line) {
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ",") { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur); return out;
+}
+/* 最小限のxlsx読み込み（zip展開＋シートXML解析） */
+async function inflateRaw(bytes) {
+  const ds = new DecompressionStream("deflate-raw");
+  const stream = new Blob([bytes]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function unzipEntries(buf) {
+  const dv = new DataView(buf);
+  let eocd = -1;
+  for (let i = dv.byteLength - 22; i >= Math.max(0, dv.byteLength - 22 - 65536); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("xlsxの形式を読み取れませんでした");
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const entries = {};
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const size = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    const name = new TextDecoder().decode(new Uint8Array(buf, off + 46, nameLen));
+    const lNameLen = dv.getUint16(localOff + 26, true);
+    const lExtraLen = dv.getUint16(localOff + 28, true);
+    const dataStart = localOff + 30 + lNameLen + lExtraLen;
+    entries[name] = { method, data: new Uint8Array(buf, dataStart, size) };
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  const out = {};
+  for (const [name, e] of Object.entries(entries)) {
+    out[name] = e.method === 0 ? e.data : await inflateRaw(e.data);
+  }
+  return out;
+}
+function xmlText(u8) { return new TextDecoder().decode(u8); }
+function xmlUnescape(s) {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&amp;/g, "&");
+}
+async function parseXlsx(buf) {
+  const files = await unzipEntries(buf);
+  let shared = [];
+  if (files["xl/sharedStrings.xml"]) {
+    const sx = xmlText(files["xl/sharedStrings.xml"]);
+    shared = [...sx.matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m =>
+      xmlUnescape([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join("")));
+  }
+  let sheetPath = "xl/worksheets/sheet1.xml";
+  if (files["xl/workbook.xml"] && files["xl/_rels/workbook.xml.rels"]) {
+    const wb = xmlText(files["xl/workbook.xml"]);
+    const rels = xmlText(files["xl/_rels/workbook.xml.rels"]);
+    const firstSheet = wb.match(/<sheet[^>]*r:id="([^"]+)"/);
+    if (firstSheet) {
+      const rel = rels.match(new RegExp(`<Relationship[^>]*Id="${firstSheet[1]}"[^>]*Target="([^"]+)"`));
+      if (rel) sheetPath = "xl/" + rel[1].replace(/^\/?xl\//, "");
+    }
+  }
+  if (!files[sheetPath]) throw new Error("シートが見つかりませんでした");
+  const sheet = xmlText(files[sheetPath]);
+  const rows = [];
+  for (const rm of sheet.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
+    const cells = [];
+    for (const cm of rm[1].matchAll(/<c\s+([^>]*)>([\s\S]*?)<\/c>|<c\s+([^>]*)\/>/g)) {
+      const attrs = cm[1] || cm[3] || "";
+      const inner = cm[2] || "";
+      const ref = (attrs.match(/r="([A-Z]+)\d+"/) || [])[1] || "";
+      let col = 0;
+      for (const ch of ref) col = col * 26 + (ch.charCodeAt(0) - 64);
+      col = Math.max(0, col - 1);
+      const type = (attrs.match(/t="([^"]+)"/) || [])[1] || "";
+      let val = "";
+      const vm = inner.match(/<v>([\s\S]*?)<\/v>/);
+      if (type === "s" && vm) val = shared[parseInt(vm[1], 10)] ?? "";
+      else if (type === "inlineStr") val = xmlUnescape([...inner.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join(""));
+      else if (vm) val = xmlUnescape(vm[1]);
+      while (cells.length < col) cells.push("");
+      cells[col] = val;
+    }
+    rows.push(cells);
+  }
+  return rows;
+}
+function rowsToRecords(table) {
+  const head = (table[0] || []).map(h => String(h).trim());
+  const idx = {};
+  ["年月", "都道府県", "市区町村", "職種分類", "掲載費用（円）", "応募件数"].forEach(k => {
+    idx[k] = head.indexOf(k);
+    if (idx[k] < 0) throw new Error("項目が見つかりません：" + k);
+  });
+  const rows = [];
+  for (let i = 1; i < table.length; i++) {
+    const c = table[i];
+    if (!c || !c.length) continue;
+    const jobName = String(c[idx["職種分類"]] ?? "");
+    const job = jobName === "キャスト" ? 0 : jobName.includes("ホール") ? 1 : -1;
+    const fee = parseFloat(c[idx["掲載費用（円）"]]), apps = parseFloat(c[idx["応募件数"]]);
+    const ym = String(c[idx["年月"]] ?? "").trim();
+    if (job < 0 || isNaN(fee) || isNaN(apps) || !ym) continue;
+    rows.push([ym, String(c[idx["都道府県"]] ?? ""), String(c[idx["市区町村"]] ?? ""), job, fee, apps]);
+  }
+  return rows;
+}
+$("doImport").addEventListener("click", async () => {
   const f = $("fileData").files[0];
   if (!f) { $("importMsg").textContent = "ファイルを選んでください。"; return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const text = new TextDecoder("utf-8").decode(reader.result).replace(/^﻿/, "");
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      const head = lines[0].split(",").map(h => h.trim());
-      const idx = {};
-      ["年月", "都道府県", "市区町村", "職種分類", "掲載費用（円）", "応募件数"].forEach(k => {
-        idx[k] = head.indexOf(k);
-        if (idx[k] < 0) throw new Error("項目が見つかりません：" + k);
-      });
-      const parse = line => {
-        const out = []; let cur = "", q = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
-          else if (ch === '"') q = true;
-          else if (ch === ",") { out.push(cur); cur = ""; }
-          else cur += ch;
-        }
-        out.push(cur); return out;
-      };
-      const rows = [];
-      for (let i = 1; i < lines.length; i++) {
-        const c = parse(lines[i]);
-        const job = c[idx["職種分類"]] === "キャスト" ? 0 : (c[idx["職種分類"]] || "").includes("ホール") ? 1 : -1;
-        const fee = parseFloat(c[idx["掲載費用（円）"]]), apps = parseFloat(c[idx["応募件数"]]);
-        if (job < 0 || isNaN(fee) || isNaN(apps)) continue;
-        rows.push([c[idx["年月"]], c[idx["都道府県"]], c[idx["市区町村"]], job, fee, apps]);
-      }
-      if (!rows.length) throw new Error("取り込める行がありませんでした");
-      DATA = rows;
-      localStorage.setItem(LS_KEY, JSON.stringify(rows));
-      $("importMsg").textContent = `${fmt(rows.length)}件を取り込みました。`;
-      state.city = null;
-      fillPrefs(); render();
-    } catch (err) {
-      $("importMsg").textContent = "取り込めませんでした：" + err.message;
+  const mode = (document.querySelector('input[name="importMode"]:checked') || {}).value || "replace";
+  try {
+    const buf = await f.arrayBuffer();
+    let table;
+    if (/\.xlsx$/i.test(f.name)) {
+      table = await parseXlsx(buf);
+    } else {
+      const text = new TextDecoder("utf-8").decode(buf).replace(/^\uFEFF/, "");
+      table = text.split(/\r?\n/).filter(l => l.trim()).map(parseCsvLine);
     }
-  };
-  reader.readAsArrayBuffer(f);
+    const rows = rowsToRecords(table);
+    if (!rows.length) throw new Error("取り込める行がありませんでした");
+    if (mode === "append") {
+      const key = r => r[0] + "|" + r[1] + "|" + r[2] + "|" + r[3];
+      const map = new Map(DATA.map(r => [key(r), r]));
+      rows.forEach(r => map.set(key(r), r));
+      DATA = [...map.values()];
+      $("importMsg").textContent = `${fmt(rows.length)}件を追加で取り込みました（合計 ${fmt(DATA.length)}件）。`;
+    } else {
+      DATA = rows;
+      $("importMsg").textContent = `${fmt(rows.length)}件を取り込みました（置き換え）。`;
+    }
+    localStorage.setItem(LS_KEY, JSON.stringify(DATA));
+    state.city = null;
+    fillPrefs(); render();
+  } catch (err) {
+    $("importMsg").textContent = "取り込めませんでした：" + err.message;
+  }
 });
 
 fillPrefs();
