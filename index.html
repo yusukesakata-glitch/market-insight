@@ -1210,8 +1210,8 @@ function trendCmpChart(sa, sb, la, lb) {
   const W = 640, H = 236, base = 200, top = 30;
   const months = [...new Set([...sa.map(d => d.ym), ...sb.map(d => d.ym)])].sort();
   if (months.length < 2) return "";
-  const va = Object.fromEntries(sa.map(d => [d.ym, d.apps]));
-  const vb = Object.fromEntries(sb.map(d => [d.ym, d.apps]));
+  const cpa = arr => { const m = {}; arr.forEach(d => { if (d.apps > 0) m[d.ym] = d.fee / d.apps; }); return m; };
+  const va = cpa(sa), vb = cpa(sb);
   const max = Math.max(...months.map(m => Math.max(va[m] || 0, vb[m] || 0)), 1);
   const n = months.length, slot = W / n;
   const X = i => slot * i + slot / 2;
@@ -1226,6 +1226,11 @@ function trendCmpChart(sa, sb, la, lb) {
     return `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
   };
   s += line(va, "#25475F") + line(vb, "#D9A94A");
+  const lastVal = vals => { for (let i = months.length - 1; i >= 0; i--) if (vals[months[i]] != null) return [i, vals[months[i]]]; return null; };
+  [[va, "#25475F"], [vb, "#B8933F"]].forEach(([vals, color]) => {
+    const lv = lastVal(vals);
+    if (lv) s += `<text x="${W - 1}" y="${(Y(lv[1]) - 6).toFixed(1)}" text-anchor="end" font-size="10.5" font-weight="700" fill="${color}">${fmt(Math.round(lv[1]))}円</text>`;
+  });
   months.forEach((m, i) => {
     if (i % Math.ceil(n / 12) === 0 && (n - 1 - i) > 1 || i === n - 1) {
       const anchor = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
@@ -1268,7 +1273,7 @@ function renderCompare() {
     charts = `<div class="svgbox" style="margin-top:12px">${bandChartCmp(ra.fc, rb.fc, ra.short, rb.short)}</div>` +
       `<div class="meta">費用帯ごとの想定応募数（単位：万円）</div>` +
       `<div class="svgbox" style="margin-top:8px">${trendCmpChart(monthlySeries(ra.pref, ra.cities, state.job), monthlySeries(rb.pref, rb.cities, state.job), ra.short, rb.short)}</div>` +
-      `<div class="meta">月別の応募数の推移</div>`;
+      `<div class="meta">月別の応募単価の推移（円／件・低いほど安く取れています）</div>`;
   }
   $("cmpCharts").innerHTML = charts;
   $("cmpDiff").textContent = diff;
