@@ -260,7 +260,7 @@
     </div>
     <div class="cmpgrid">
       <div class="cmpside">
-        <span class="cmplabel">A</span>
+        <span class="cmplabel" id="cmpLabelA"></span>
         <div class="selrow noprint">
           <div><label class="flabel">都道府県</label><select id="cmpPrefA"></select></div>
           <div><label class="flabel">市区町村</label><select id="cmpCityA"></select></div>
@@ -270,7 +270,7 @@
         <div id="cmpBodyA"></div>
       </div>
       <div class="cmpside">
-        <span class="cmplabel">B</span>
+        <span class="cmplabel" id="cmpLabelB"></span>
         <div class="selrow noprint">
           <div><label class="flabel">都道府県</label><select id="cmpPrefB"></select></div>
           <div><label class="flabel">市区町村</label><select id="cmpCityB"></select></div>
@@ -492,22 +492,33 @@ function areasForStation(pref, city, stationObj) {
     const m = ownerKey.match(/^(.+市)/);
     if (m) {
       const sibs = Object.keys(sd).filter(k => k.startsWith(m[1]) && k !== ownerKey)
-        .map(k => keyToDataCity(pref, k)).filter(Boolean).filter(c => c !== city);
+        .map(k => keyToDataCity(pref, k)).filter(Boolean)
+        .filter(c => c !== city && c.startsWith(m[1]));
       if (sibs.length) return [city, ...[...new Set(sibs)].slice(0, 4)];
     }
-    const others = Object.keys(sd).map(k => keyToDataCity(pref, k)).filter(Boolean).filter(c => c !== city);
-    if (others.length) return [city, ...[...new Set(others)].slice(0, 4)];
+    /* 県内の無関係な市区町村を寄せ集めるフォールバックは廃止（地理的に無関係なエリアが混ざるため）。半径で拾う */
+    const byR = areasByRadius(pref, city, stationObj);
+    if (byR) return byR;
     return [city];
   }
   /* 3. フォールバック：駅座標から半径5.5km */
-  if (stationObj.lat != null) {
-    const cities = dataCities(pref).filter(ct => {
-      const c = cityCentroid(pref, ct);
-      return c && havKm([stationObj.lat, stationObj.lng], c) <= AREA_RADIUS_KM;
-    });
-    if (cities.length) return cities.includes(city) ? cities : [city, ...cities];
-  }
+  const byR2 = areasByRadius(pref, city, stationObj);
+  if (byR2) return byR2;
   return [city];
+}
+function areasByRadius(pref, city, stationObj) {
+  let lat = stationObj.lat, lng = stationObj.lng;
+  if (lat == null) {
+    const rec = (window.STATIONS || []).find(s => s[0] === stationObj.name + "駅" || s[0] === stationObj.name);
+    if (rec) { lat = rec[1]; lng = rec[2]; }
+  }
+  if (lat == null) return null;
+  const cities = dataCities(pref).filter(ct => {
+    const c = cityCentroid(pref, ct);
+    return c && havKm([lat, lng], c) <= AREA_RADIUS_KM;
+  });
+  if (!cities.length) return null;
+  return cities.includes(city) ? cities : [city, ...cities];
 }
 
 /* ============ 地理（フォールバック用） ============ */
@@ -1157,7 +1168,8 @@ function cmpResolve(side) {
   const stObj = side.station ? (sts.find(s => s.name === side.station) || { name: side.station, lat: null, lng: null }) : null;
   const cities = stObj ? areasForStation(side.pref, side.city, stObj) : [side.city];
   const name = stObj ? `${side.station}駅周辺（${cities.join("・")}）` : `${side.city}単体`;
-  return { name, fc: forecast(side.pref, cities, state.job, state.plan, false), pref: side.pref, cities };
+  const short = stObj ? `${side.station}駅周辺` : side.city;
+  return { name, short, fc: forecast(side.pref, cities, state.job, state.plan, false), pref: side.pref, cities };
 }
 function cmpBodyHtml(fc) {
   if (!fc) return '<div class="nodata">この条件のデータがありません</div>';
@@ -1171,15 +1183,16 @@ function cmpBodyHtml(fc) {
     `<div class="cmprow"><span>最近の実績（月平均）</span><b>${act}</b></div>` +
     `<div class="cmprow"><span>応募総数</span><b>${fmt(fc.totalApps)}件</b></div>`;
 }
-function bandChartCmp(fa, fb) {
+function bandChartCmp(fa, fb, la, lb) {
   const W = 640, H = 216, base = 178, top = 26;
   const rowsA = fa.rows, rowsB = fb.rows;
   const max = Math.max(...rowsA.map(r => r.est), ...rowsB.map(r => r.est), 1);
   const n = rowsA.length, slot = W / n, bw = Math.min(22, slot * 0.34);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
   s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
-  s += `<rect x="2" y="4" width="10" height="10" fill="#25475F"/><text x="16" y="13" font-size="11" fill="#163B5B" font-weight="700">A</text>`;
-  s += `<rect x="42" y="4" width="10" height="10" fill="#D9A94A"/><text x="56" y="13" font-size="11" fill="#163B5B" font-weight="700">B</text>`;
+  s += `<rect x="2" y="4" width="10" height="10" fill="#25475F"/><text x="16" y="13" font-size="11" fill="#163B5B" font-weight="700">${la}</text>`;
+  const bx = 16 + String(la).length * 11 + 26;
+  s += `<rect x="${bx}" y="4" width="10" height="10" fill="#D9A94A"/><text x="${bx + 14}" y="13" font-size="11" fill="#163B5B" font-weight="700">${lb}</text>`;
   rowsA.forEach((r, i) => {
     const cx = slot * i + slot / 2;
     const mk = (row, off, fill) => {
@@ -1193,7 +1206,7 @@ function bandChartCmp(fa, fb) {
   });
   return s + "</svg>";
 }
-function trendCmpChart(sa, sb) {
+function trendCmpChart(sa, sb, la, lb) {
   const W = 640, H = 236, base = 200, top = 30;
   const months = [...new Set([...sa.map(d => d.ym), ...sb.map(d => d.ym)])].sort();
   if (months.length < 2) return "";
@@ -1205,8 +1218,9 @@ function trendCmpChart(sa, sb) {
   const Y = v => base - (base - top) * v / max;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
   s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
-  s += `<rect x="2" y="4" width="10" height="10" fill="#25475F"/><text x="16" y="13" font-size="11" fill="#163B5B" font-weight="700">A</text>`;
-  s += `<rect x="42" y="4" width="10" height="10" fill="#D9A94A"/><text x="56" y="13" font-size="11" fill="#163B5B" font-weight="700">B</text>`;
+  s += `<rect x="2" y="4" width="10" height="10" fill="#25475F"/><text x="16" y="13" font-size="11" fill="#163B5B" font-weight="700">${la}</text>`;
+  const bx2 = 16 + String(la).length * 11 + 26;
+  s += `<rect x="${bx2}" y="4" width="10" height="10" fill="#D9A94A"/><text x="${bx2 + 14}" y="13" font-size="11" fill="#163B5B" font-weight="700">${lb}</text>`;
   const line = (vals, color) => {
     const pts = months.map((m, i) => vals[m] != null ? `${X(i).toFixed(1)},${Y(vals[m]).toFixed(1)}` : null).filter(Boolean);
     return `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
@@ -1229,6 +1243,8 @@ function renderCompare() {
   }
   $("cmpStateRow").style.display = state.cmpTouched ? "flex" : "none";
   const ra = cmpResolve(state.cmpA), rb = cmpResolve(state.cmpB);
+  $("cmpLabelA").textContent = ra ? ra.short : "";
+  $("cmpLabelB").textContent = rb ? rb.short : "";
   $("cmpNameA").textContent = ra ? ra.name : "";
   $("cmpNameB").textContent = rb ? rb.name : "";
   $("cmpBodyA").innerHTML = cmpBodyHtml(ra && ra.fc);
@@ -1249,10 +1265,10 @@ function renderCompare() {
   }
   let charts = "";
   if (ra && rb && ra.fc && rb.fc) {
-    charts = `<div class="svgbox" style="margin-top:12px">${bandChartCmp(ra.fc, rb.fc)}</div>` +
-      `<div class="meta">費用帯ごとの想定応募数（単位：万円／A＝紺・B＝ゴールド）</div>` +
-      `<div class="svgbox" style="margin-top:8px">${trendCmpChart(monthlySeries(ra.pref, ra.cities, state.job), monthlySeries(rb.pref, rb.cities, state.job))}</div>` +
-      `<div class="meta">月別の応募数の推移（A＝紺・B＝ゴールド）</div>`;
+    charts = `<div class="svgbox" style="margin-top:12px">${bandChartCmp(ra.fc, rb.fc, ra.short, rb.short)}</div>` +
+      `<div class="meta">費用帯ごとの想定応募数（単位：万円）</div>` +
+      `<div class="svgbox" style="margin-top:8px">${trendCmpChart(monthlySeries(ra.pref, ra.cities, state.job), monthlySeries(rb.pref, rb.cities, state.job), ra.short, rb.short)}</div>` +
+      `<div class="meta">月別の応募数の推移</div>`;
   }
   $("cmpCharts").innerHTML = charts;
   $("cmpDiff").textContent = diff;
