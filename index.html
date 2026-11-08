@@ -1011,7 +1011,7 @@ async function parseXlsxAll(buf) {
   return tables;
 }
 function normYm(s) {
-  const t = String(s).trim();
+  const t = String(s).trim().replace(/(\d)\.0+$/, "$1");
   const m6 = t.match(/^(20\d{2})(0[1-9]|1[0-2])$/);
   if (m6) return m6[1] + "-" + m6[2];
   const m = t.match(/^(20\d{2})[-\/年](\d{1,2})/);
@@ -1026,8 +1026,58 @@ function jobOf(name) {
   if (n.includes("ホール")) return 1;
   return -1;
 }
+function normalizeCityName(pref, rawCity) {
+  let c = String(rawCity || "").replace(/\s+/g, "");
+  if (c.includes(",")) {
+    const parts = c.split(",").filter(Boolean);
+    if (parts[0] === "東京") parts.shift();
+    c = parts.join("");
+  }
+  if (pref === "大阪府" && c.startsWith("大阪市")) c = c.slice(3);
+  if (pref === "京都府" && c.startsWith("京都市")) c = c.slice(3);
+  return c;
+}
+function rawToRecords(table) {
+  /* 自動反映データ（求人ごとの明細）を、期間×都道府県×市区町村×職種に集計して取り込む */
+  const head = (table[0] || []).map(h => String(h).trim());
+  const gi = k => head.indexOf(k);
+  const iPref = gi("都道府県"), iCity = gi("市区町村"), iJob = gi("キャストかどうか"),
+    iFee = gi("費用"), iApps = gi("応募数"), iComp = gi("企業名"), iYm = gi("期間");
+  if ([iPref, iCity, iJob, iFee, iApps, iYm].some(i => i < 0)) throw new Error("自動反映データの列が見つかりませんでした");
+  const acc = new Map();
+  for (let i = 1; i < table.length; i++) {
+    const c = table[i];
+    if (!c) continue;
+    const job = jobOf(c[iJob]);
+    if (job < 0) continue;
+    const ym = normYm(c[iYm] ?? "");
+    if (!ym) continue;
+    const pref = String(c[iPref] ?? "").trim();
+    const city = normalizeCityName(pref, c[iCity]);
+    if (!pref || !city) continue;
+    const key = ym + "|" + pref + "|" + city + "|" + job;
+    if (!acc.has(key)) acc.set(key, { ym, pref, city, job, fee: 0, apps: 0, comps: new Set() });
+    const a = acc.get(key);
+    a.fee += parseFloat(c[iFee]) || 0;
+    a.apps += parseFloat(c[iApps]) || 0;
+    const comp = iComp >= 0 ? String(c[iComp] ?? "").trim() : "";
+    if (comp) a.comps.add(comp);
+  }
+  const rows = [];
+  for (const a of acc.values()) {
+    if (!(a.fee > 0)) continue;
+    const rec = [a.ym, a.pref, a.city, a.job, Math.round(a.fee), Math.round(a.apps)];
+    if (a.comps.size) rec[6] = a.comps.size;
+    rows.push(rec);
+  }
+  if (!rows.length) throw new Error("自動反映データから取り込める行がありませんでした");
+  return rows;
+}
 function rowsToRecords(table) {
   const head = (table[0] || []).map(h => String(h).trim());
+  if (head.includes("期間") && head.includes("キャストかどうか") && head.includes("費用")) {
+    return rawToRecords(table);
+  }
   if (head.indexOf("年月") >= 0 && head.indexOf("市区町村") >= 0) {
     /* 行形式（テンプレート）。企業数・業種の列があれば一緒に取り込む */
     const gi = k => head.indexOf(k);
