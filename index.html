@@ -1210,7 +1210,7 @@ function trendCmpChart(sa, sb, la, lb) {
   const W = 640, H = 236, base = 200, top = 30;
   const months = [...new Set([...sa.map(d => d.ym), ...sb.map(d => d.ym)])].sort();
   if (months.length < 2) return "";
-  const cpa = arr => { const m = {}; arr.forEach(d => { if (d.apps > 0) m[d.ym] = d.fee / d.apps; }); return m; };
+  const cpa = arr => { const m = {}; arr.forEach(d => { if (d.cpa != null) m[d.ym] = d.cpa; }); return m; };
   const va = cpa(sa), vb = cpa(sb);
   const max = Math.max(...months.map(m => Math.max(va[m] || 0, vb[m] || 0)), 1);
   const n = months.length, slot = W / n;
