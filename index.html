@@ -276,6 +276,7 @@
         <div id="cmpBodyB"></div>
       </div>
     </div>
+    <div id="cmpCharts"></div>
     <div class="cmpdiff" id="cmpDiff"></div>
   </div>
 
@@ -1151,7 +1152,7 @@ function cmpResolve(side) {
   const stObj = side.station ? (sts.find(s => s.name === side.station) || { name: side.station, lat: null, lng: null }) : null;
   const cities = stObj ? areasForStation(side.pref, side.city, stObj) : [side.city];
   const name = stObj ? `${side.station}駅周辺（${cities.join("・")}）` : `${side.city}単体`;
-  return { name, fc: forecast(side.pref, cities, state.job, state.plan, false) };
+  return { name, fc: forecast(side.pref, cities, state.job, state.plan, false), pref: side.pref, cities };
 }
 function cmpBodyHtml(fc) {
   if (!fc) return '<div class="nodata">この条件のデータがありません</div>';
@@ -1164,6 +1165,56 @@ function cmpBodyHtml(fc) {
     `<div class="cmprow"><span>目標${fmt(state.target)}件の予算目安</span><b>約${manYen(need)}万円</b></div>` +
     `<div class="cmprow"><span>最近の実績（月平均）</span><b>${act}</b></div>` +
     `<div class="cmprow"><span>応募総数</span><b>${fmt(fc.totalApps)}件</b></div>`;
+}
+function bandChartCmp(fa, fb) {
+  const W = 640, H = 216, base = 178, top = 26;
+  const rowsA = fa.rows, rowsB = fb.rows;
+  const max = Math.max(...rowsA.map(r => r.est), ...rowsB.map(r => r.est), 1);
+  const n = rowsA.length, slot = W / n, bw = Math.min(22, slot * 0.34);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
+  s += `<rect x="2" y="4" width="10" height="10" fill="#25475F"/><text x="16" y="13" font-size="11" fill="#163B5B" font-weight="700">A</text>`;
+  s += `<rect x="42" y="4" width="10" height="10" fill="#D9A94A"/><text x="56" y="13" font-size="11" fill="#163B5B" font-weight="700">B</text>`;
+  rowsA.forEach((r, i) => {
+    const cx = slot * i + slot / 2;
+    const mk = (row, off, fill) => {
+      const h = Math.max(1.5, (base - top) * row.est / max);
+      const x = cx + off;
+      return `<rect x="${x.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${fill}"/>` +
+        `<text x="${(x + bw / 2).toFixed(1)}" y="${(base - h - 4).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#163B5B">${row.est}</text>`;
+    };
+    s += mk(r, -bw - 1, "#25475F") + mk(rowsB[i], 1, "#D9A94A");
+    s += `<text x="${cx.toFixed(1)}" y="${base + 15}" text-anchor="middle" font-size="10" fill="#5F6973">${r.short}</text>`;
+  });
+  return s + "</svg>";
+}
+function trendCmpChart(sa, sb) {
+  const W = 640, H = 236, base = 200, top = 30;
+  const months = [...new Set([...sa.map(d => d.ym), ...sb.map(d => d.ym)])].sort();
+  if (months.length < 2) return "";
+  const va = Object.fromEntries(sa.map(d => [d.ym, d.apps]));
+  const vb = Object.fromEntries(sb.map(d => [d.ym, d.apps]));
+  const max = Math.max(...months.map(m => Math.max(va[m] || 0, vb[m] || 0)), 1);
+  const n = months.length, slot = W / n;
+  const X = i => slot * i + slot / 2;
+  const Y = v => base - (base - top) * v / max;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#DCE6EE" stroke-width="1.5"/>`;
+  s += `<rect x="2" y="4" width="10" height="10" fill="#25475F"/><text x="16" y="13" font-size="11" fill="#163B5B" font-weight="700">A</text>`;
+  s += `<rect x="42" y="4" width="10" height="10" fill="#D9A94A"/><text x="56" y="13" font-size="11" fill="#163B5B" font-weight="700">B</text>`;
+  const line = (vals, color) => {
+    const pts = months.map((m, i) => vals[m] != null ? `${X(i).toFixed(1)},${Y(vals[m]).toFixed(1)}` : null).filter(Boolean);
+    return `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+  };
+  s += line(va, "#25475F") + line(vb, "#D9A94A");
+  months.forEach((m, i) => {
+    if (i % Math.ceil(n / 12) === 0 && (n - 1 - i) > 1 || i === n - 1) {
+      const anchor = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
+      const lx = i === 0 ? 1 : i === n - 1 ? W - 1 : X(i);
+      s += `<text x="${lx.toFixed(1)}" y="${base + 16}" text-anchor="${anchor}" font-size="10" fill="#5F6973">${m.slice(2).replace("-", "/")}</text>`;
+    }
+  });
+  return s + "</svg>";
 }
 function renderCompare() {
   if (!state.cmpTouched) {
@@ -1190,6 +1241,14 @@ function renderCompare() {
       diff += `予算${state.budget / 10000}万円では ${more.name} の方が約${fmt(Math.abs(dApps))}件多く見込めます。`;
     }
   }
+  let charts = "";
+  if (ra && rb && ra.fc && rb.fc) {
+    charts = `<div class="svgbox" style="margin-top:12px">${bandChartCmp(ra.fc, rb.fc)}</div>` +
+      `<div class="meta">費用帯ごとの想定応募数（単位：万円／A＝紺・B＝ゴールド）</div>` +
+      `<div class="svgbox" style="margin-top:8px">${trendCmpChart(monthlySeries(ra.pref, ra.cities, state.job), monthlySeries(rb.pref, rb.cities, state.job))}</div>` +
+      `<div class="meta">月別の応募数の推移（A＝紺・B＝ゴールド）</div>`;
+  }
+  $("cmpCharts").innerHTML = charts;
   $("cmpDiff").textContent = diff;
   $("cardCompare").classList.toggle("pagebreak", !!(ra && rb && ra.fc && rb.fc));
 }
