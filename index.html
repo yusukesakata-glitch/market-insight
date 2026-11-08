@@ -961,25 +961,7 @@ function xmlText(u8) { return new TextDecoder().decode(u8); }
 function xmlUnescape(s) {
   return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&amp;/g, "&");
 }
-async function parseXlsx(buf) {
-  const files = await unzipEntries(buf);
-  let shared = [];
-  if (files["xl/sharedStrings.xml"]) {
-    const sx = xmlText(files["xl/sharedStrings.xml"]);
-    shared = [...sx.matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m =>
-      xmlUnescape([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join("")));
-  }
-  let sheetPath = "xl/worksheets/sheet1.xml";
-  if (files["xl/workbook.xml"] && files["xl/_rels/workbook.xml.rels"]) {
-    const wb = xmlText(files["xl/workbook.xml"]);
-    const rels = xmlText(files["xl/_rels/workbook.xml.rels"]);
-    const firstSheet = wb.match(/<sheet[^>]*r:id="([^"]+)"/);
-    if (firstSheet) {
-      const rel = rels.match(new RegExp(`<Relationship[^>]*Id="${firstSheet[1]}"[^>]*Target="([^"]+)"`));
-      if (rel) sheetPath = "xl/" + rel[1].replace(/^\/?xl\//, "");
-    }
-  }
-  if (!files[sheetPath]) throw new Error("シートが見つかりませんでした");
+function parseSheetRows(files, shared, sheetPath) {
   const sheet = xmlText(files[sheetPath]);
   const rows = [];
   for (const rm of sheet.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
@@ -1004,8 +986,35 @@ async function parseXlsx(buf) {
   }
   return rows;
 }
+async function parseXlsxAll(buf) {
+  const files = await unzipEntries(buf);
+  let shared = [];
+  if (files["xl/sharedStrings.xml"]) {
+    const sx = xmlText(files["xl/sharedStrings.xml"]);
+    shared = [...sx.matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m =>
+      xmlUnescape([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(t => t[1]).join("")));
+  }
+  const paths = [];
+  if (files["xl/workbook.xml"] && files["xl/_rels/workbook.xml.rels"]) {
+    const wb = xmlText(files["xl/workbook.xml"]);
+    const rels = xmlText(files["xl/_rels/workbook.xml.rels"]);
+    const relMap = {};
+    for (const rm of rels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) relMap[rm[1]] = rm[2];
+    for (const sm of wb.matchAll(/<sheet[^>]*r:id="([^"]+)"/g)) {
+      const t = relMap[sm[1]];
+      if (t) paths.push("xl/" + t.replace(/^\/?xl\//, ""));
+    }
+  }
+  if (!paths.length && files["xl/worksheets/sheet1.xml"]) paths.push("xl/worksheets/sheet1.xml");
+  const tables = paths.filter(p => files[p]).map(p => parseSheetRows(files, shared, p));
+  if (!tables.length) throw new Error("シートが見つかりませんでした");
+  return tables;
+}
 function normYm(s) {
-  const m = String(s).trim().match(/^(20\d{2})[-\/年](\d{1,2})/);
+  const t = String(s).trim();
+  const m6 = t.match(/^(20\d{2})(0[1-9]|1[0-2])$/);
+  if (m6) return m6[1] + "-" + m6[2];
+  const m = t.match(/^(20\d{2})[-\/年](\d{1,2})/);
   if (!m) return null;
   const mo = parseInt(m[2], 10);
   if (mo < 1 || mo > 12) return null;
@@ -1046,40 +1055,54 @@ function rowsToRecords(table) {
   return pivotToRecords(table);
 }
 function pivotToRecords(table) {
-  /* 集計表ピボット（月が列）：2段ヘッダー（月＋指標）と、指標列つき1段ヘッダーに対応 */
+  /* 集計表ピボット（月が列）：スプレッドシートのピボット形式（月が上の行・指標が見出し行）、
+     2段ヘッダー（月＋指標）、指標列つき1段ヘッダーに対応 */
   const cells = r => (r || []).map(h => String(h).trim());
   const metricOf = s => { s = String(s); if (s.includes("費用")) return "fee"; if (s.includes("応募")) return "apps"; if (s.includes("企業")) return "comp"; return null; };
   const findDim = row => {
     const cs = cells(row);
-    return { pref: cs.indexOf("都道府県"), city: cs.indexOf("市区町村"), job: cs.indexOf("職種分類"), ind: cs.indexOf("業種") };
+    return { pref: cs.indexOf("都道府県"), city: cs.indexOf("市区町村"), job: cs.findIndex(h => h === "職種分類" || h === "キャストかどうか" || h === "職種"), ind: cs.indexOf("業種") };
   };
-  let dim = findDim(table[0]);
-  let headRows = 1;
-  if (dim.city < 0) { dim = findDim(table[1]); headRows = 2; }
-  if (dim.city < 0 || dim.job < 0) throw new Error("集計表の形式を読み取れませんでした（都道府県・市区町村・職種分類の列が必要です）");
-  const lastDimCol = Math.max(dim.pref, dim.city, dim.job, dim.ind);
-  const indCol = cells(table[0]).findIndex(h => ["指標", "項目", "区分"].includes(h));
-  if (headRows === 1 && indCol < 0) {
-    const r1 = cells(table[1]);
-    if (r1.some((h, c) => c > lastDimCol && metricOf(h))) headRows = 2;
+  let dim = null, dimRow = -1;
+  for (let r = 0; r < Math.min(4, table.length); r++) {
+    const d = findDim(table[r]);
+    if (d.city >= 0 && d.job >= 0) { dim = d; dimRow = r; break; }
   }
+  if (!dim) throw new Error("集計表の形式を読み取れませんでした（都道府県・市区町村・職種分類の列が必要です）");
+  const lastDimCol = Math.max(dim.pref, dim.city, dim.job, dim.ind);
+  const indCol = cells(table[dimRow]).findIndex(h => ["指標", "項目", "区分"].includes(h));
   const monthCols = [];
-  if (headRows === 2) {
-    const mRow = cells(table[0]), metRow = cells(table[1]);
+  /* パターンC（スプレッドシートのピボット）：月が1つ上の行、指標が見出し行 */
+  if (dimRow > 0 && !monthCols.length) {
+    const mRow = cells(table[dimRow - 1]), dRow = cells(table[dimRow]);
     let curYm = null;
-    for (let c = 0; c < Math.max(mRow.length, metRow.length); c++) {
+    for (let c = lastDimCol + 1; c < Math.max(mRow.length, dRow.length); c++) {
       const ym = normYm(mRow[c] ?? ""); if (ym) curYm = ym;
-      const met = metricOf(metRow[c] ?? "");
-      if (curYm && met && c > lastDimCol) monthCols.push({ col: c, ym: curYm, met });
+      const met = metricOf(dRow[c] ?? "");
+      if (curYm && met) monthCols.push({ col: c, ym: curYm, met });
     }
-  } else {
-    const hd = cells(table[0]);
+  }
+  /* パターンA：見出し行に月＋指標列 */
+  if (!monthCols.length && indCol >= 0) {
+    const hd = cells(table[dimRow]);
     for (let c = 0; c < hd.length; c++) {
       const ym = normYm(hd[c]);
       if (ym && c > lastDimCol) monthCols.push({ col: c, ym, met: null });
     }
   }
+  /* パターンB：見出し行に月、次の行に指標（月は結合セル前提で横に引き継ぐ） */
+  if (!monthCols.length && table[dimRow + 1]) {
+    const dRow = cells(table[dimRow]), nRow = cells(table[dimRow + 1]);
+    let curYm = null;
+    for (let c = 0; c < Math.max(dRow.length, nRow.length); c++) {
+      const ym = normYm(dRow[c]); if (ym) curYm = ym;
+      const met = metricOf(nRow[c] ?? "");
+      if (curYm && met && c > lastDimCol) monthCols.push({ col: c, ym: curYm, met });
+    }
+    if (monthCols.length) dimRow++;
+  }
   if (!monthCols.length) throw new Error("集計表の月列が見つかりませんでした");
+  const headRows = dimRow + 1;
   const acc = new Map();
   for (let i = headRows; i < table.length; i++) {
     const c = table[i];
@@ -1111,14 +1134,18 @@ function pivotToRecords(table) {
 }
 async function importFile(f) {
   const buf = await f.arrayBuffer();
-  let table;
+  let tables;
   if (/\.xlsx$/i.test(f.name)) {
-    table = await parseXlsx(buf);
+    tables = await parseXlsxAll(buf);
   } else {
     const text = new TextDecoder("utf-8").decode(buf).replace(/^﻿/, "");
-    table = text.split(/\r?\n/).filter(l => l.trim()).map(parseCsvLine);
+    tables = [text.split(/\r?\n/).filter(l => l.trim()).map(parseCsvLine)];
   }
-  const rows = rowsToRecords(table);
+  let rows = null, lastErr = null;
+  for (const t of tables) {
+    try { rows = rowsToRecords(t); break; } catch (e) { lastErr = e; }
+  }
+  if (!rows) throw lastErr || new Error("取り込める行がありませんでした");
   if (!rows.length) throw new Error("取り込める行がありませんでした");
   const months = [...new Set(rows.map(r => r[0]))].sort();
   const monthSet = new Set(months);
