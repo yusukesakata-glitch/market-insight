@@ -1034,7 +1034,7 @@ function rowsToRecords(table) {
       const job = jobOf(c[gi("職種分類")]);
       const fee = parseFloat(c[gi("掲載費用（円）")]), apps = parseFloat(c[gi("応募件数")]);
       const ym = normYm(c[gi("年月")] ?? "") || String(c[gi("年月")] ?? "").trim();
-      if (job < 0 || isNaN(fee) || isNaN(apps) || !ym) continue;
+      if (job < 0 || isNaN(fee) || isNaN(apps) || !ym || fee <= 0) continue;
       const rec = [ym, String(c[gi("都道府県")] ?? ""), String(c[gi("市区町村")] ?? ""), job, fee, apps];
       const comp = ciComp >= 0 ? parseFloat(c[ciComp]) : NaN;
       const ind = ciInd >= 0 ? String(c[ciInd] ?? "").trim() : "";
@@ -1101,7 +1101,7 @@ function pivotToRecords(table) {
   }
   const rows = [];
   for (const a of acc.values()) {
-    if (!a.fee && !a.apps) continue;
+    if (!(a.fee > 0)) continue; /* 費用0の行は取り込まない（マニュアルのフィルターを自動化） */
     const rec = [a.ym, a.pref, a.city, a.job, a.fee, a.apps];
     if (a.comp != null || a.ind) { rec[6] = a.comp; rec[7] = a.ind; }
     rows.push(rec);
