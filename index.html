@@ -1183,10 +1183,11 @@ function renderCompare() {
       const cheap = d < 0 ? ra : rb;
       diff += `応募単価は ${cheap.name} の方が ${fmt(Math.abs(d))}円 安いです。`;
     } else diff += "応募単価はほぼ同じです。";
-    const ea = Math.round(state.budget / ra.fc.cpa), eb = Math.round(state.budget / rb.fc.cpa);
-    if (ea !== eb) {
-      const more = ea > eb ? ra : rb;
-      diff += `予算${state.budget / 10000}万円では ${more.name} の方が約${fmt(Math.abs(ea - eb))}件多く見込めます。`;
+    const midEst = fc => { const e = Math.round(state.budget / fc.cpa); const [a, b] = estRange(e); return (a + b) / 2; };
+    const dApps = Math.round(midEst(ra.fc) - midEst(rb.fc));
+    if (dApps !== 0) {
+      const more = dApps > 0 ? ra : rb;
+      diff += `予算${state.budget / 10000}万円では ${more.name} の方が約${fmt(Math.abs(dApps))}件多く見込めます。`;
     }
   }
   $("cmpDiff").textContent = diff;
