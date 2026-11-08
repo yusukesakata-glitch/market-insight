@@ -254,6 +254,10 @@
       <h2>エリア比較</h2>
       <span class="meta">職種・単価の基準・予算・目標は上の条件と共通</span>
     </div>
+    <div id="cmpStateRow" style="display:none;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:12.5px;font-weight:700;color:#B8933F">上の条件とは別に比較中です</span>
+      <button class="hbtn noprint" id="btnCmpReset" type="button">上の条件に戻す</button>
+    </div>
     <div class="cmpgrid">
       <div class="cmpside">
         <span class="cmplabel">A</span>
@@ -821,6 +825,7 @@ $("inpTarget").addEventListener("input", e => {
     render();
   });
 });
+$("btnCmpReset").addEventListener("click", () => { state.cmpTouched = false; render(); });
 ["Single", "Area"].forEach(prefix => {
   $("btnModal" + prefix).addEventListener("click", () => {
     const fc = lastFc[prefix];
@@ -1222,6 +1227,7 @@ function renderCompare() {
     state.cmpB = { pref: state.pref, city: state.city, station: state.station };
     fillCmpSide("A"); fillCmpSide("B");
   }
+  $("cmpStateRow").style.display = state.cmpTouched ? "flex" : "none";
   const ra = cmpResolve(state.cmpA), rb = cmpResolve(state.cmpB);
   $("cmpNameA").textContent = ra ? ra.name : "";
   $("cmpNameB").textContent = rb ? rb.name : "";
