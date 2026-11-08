@@ -530,8 +530,12 @@ function trendChart(series) {
     const h = Math.max(1.5, (base - top) * d.apps / maxA);
     const x = slot * i + (slot - bw) / 2;
     s += `<rect x="${x.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="4" fill="#25475F"/>`;
-    if (i % Math.ceil(n / 12) === 0 || i === n - 1)
-      s += `<text x="${(slot * i + slot / 2).toFixed(1)}" y="${base + 16}" text-anchor="middle" font-size="10" fill="#5F6973">${d.ym.slice(2).replace("-", "/")}</text>`;
+    if (i % Math.ceil(n / 12) === 0 && (n - 1 - i) > 1 || i === n - 1) {
+      const cx = slot * i + slot / 2;
+      const anchor = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
+      const lx = i === 0 ? 1 : i === n - 1 ? W - 1 : cx;
+      s += `<text x="${lx.toFixed(1)}" y="${base + 16}" text-anchor="${anchor}" font-size="10" fill="#5F6973">${d.ym.slice(2).replace("-", "/")}</text>`;
+    }
   });
   if (fees.length > 1) {
     const y = v => base - (base - top) * (v - minC) / Math.max(1, maxC - minC);
@@ -673,7 +677,9 @@ function render() {
       head +
       `全国の${JOB_NAMES[job]}では、<b>${selMonth}月は年間平均比で指数 ${Math.round(curIdx)}</b>（100が平均）の時期にあたります。`;
     $("chartTrend").innerHTML = trendChart(series);
-    $("trendMeta").textContent = `${state.trend === "area" ? "周辺エリア合算" : city} の月別 応募数と応募単価（${series[0].ym}〜${series[series.length - 1].ym}）`;
+    $("trendMeta").textContent = state.trend === "area"
+      ? `周辺エリア合算（${effAreas.join("・")}）の月別 応募数と応募単価（${series[0].ym}〜${series[series.length - 1].ym}）`
+      : `${city} の月別 応募数と応募単価（${series[0].ym}〜${series[series.length - 1].ym}）`;
     $("monthChips").innerHTML = Array.from({ length: 12 }, (_, i) =>
       `<span class="monthchip ${selMonth === i + 1 ? "on" : ""}" data-m="${i + 1}">${i + 1}月</span>`).join("");
     $("chartSeason").innerHTML = seasonChart(season, selMonth);
