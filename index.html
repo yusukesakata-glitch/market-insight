@@ -305,11 +305,7 @@
   <div class="mbox">
     <h3>データ取込</h3>
     <p>相場データのファイルを取り込みます。テンプレート形式（年月・都道府県・市区町村・職種分類・掲載費用（円）・応募件数）と、集計表のピボット形式（月が列）の両方に対応します。企業数・業種の列があれば一緒に取り込みます。CSV / Excel（.xlsx）対応。</p>
-    <div class="row" style="gap:16px">
-      <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="replace" checked> 既存データを置き換え（推奨）</label>
-      <label style="font-size:13px;font-weight:700;color:var(--navy2)"><input type="radio" name="importMode" value="append"> 既存データに追加</label>
-    </div>
-    <p style="margin-top:6px">月次更新の場合は「置き換え」を推奨します。「追加」は、同じ年月・エリア・職種の行がある場合は上書きされるので、同じファイルを2回取り込んでも二重計上にはなりません。</p>
+    <p style="margin-top:6px">ファイルはこの画面にドラッグ＆ドロップでも取り込めます。取り込んだファイルに入っている月のデータだけが入れ替わり、他の月はそのまま残ります。</p>
     <p style="margin-top:6px">※ 取り込みの反映はこの端末だけです。全員への配布は本体データの更新で行われ、本体の方が新しい場合は、次に開いたときに自動で本体データに切り替わります。</p>
     <div class="row"><input type="file" id="fileData" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>
     <div class="row">
@@ -324,6 +320,8 @@
     <p id="importMsg" style="margin-top:10px"></p>
   </div>
 </div>
+
+<div id="dropOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(22,59,91,.82);color:#fff;align-items:center;justify-content:center;font-size:20px;font-weight:800;letter-spacing:.02em">離すとデータを取り込みます</div>
 
 <script src="data.js"></script>
 <script src="station-maps.js"></script>
@@ -1111,35 +1109,60 @@ function pivotToRecords(table) {
   if (!rows.length) throw new Error("集計表から取り込める行がありませんでした");
   return rows;
 }
+async function importFile(f) {
+  const buf = await f.arrayBuffer();
+  let table;
+  if (/\.xlsx$/i.test(f.name)) {
+    table = await parseXlsx(buf);
+  } else {
+    const text = new TextDecoder("utf-8").decode(buf).replace(/^﻿/, "");
+    table = text.split(/\r?\n/).filter(l => l.trim()).map(parseCsvLine);
+  }
+  const rows = rowsToRecords(table);
+  if (!rows.length) throw new Error("取り込める行がありませんでした");
+  const months = [...new Set(rows.map(r => r[0]))].sort();
+  const monthSet = new Set(months);
+  DATA = DATA.filter(r => !monthSet.has(r[0])).concat(rows);
+  DATA_VERSION = Date.now();
+  localStorage.setItem(LS_KEY, JSON.stringify({ version: DATA_VERSION, rows: DATA }));
+  state.city = null;
+  fillPrefs(); render();
+  const mtxt = months.length <= 3 ? months.join("、") : months[0] + "〜" + months[months.length - 1];
+  return `${fmt(rows.length)}件を取り込みました。対象月（${mtxt}）のデータを入れ替えました（合計 ${fmt(DATA.length)}件）。`;
+}
 $("doImport").addEventListener("click", async () => {
   const f = $("fileData").files[0];
   if (!f) { $("importMsg").textContent = "ファイルを選んでください。"; return; }
-  const mode = (document.querySelector('input[name="importMode"]:checked') || {}).value || "replace";
   try {
-    const buf = await f.arrayBuffer();
-    let table;
-    if (/\.xlsx$/i.test(f.name)) {
-      table = await parseXlsx(buf);
-    } else {
-      const text = new TextDecoder("utf-8").decode(buf).replace(/^\uFEFF/, "");
-      table = text.split(/\r?\n/).filter(l => l.trim()).map(parseCsvLine);
-    }
-    const rows = rowsToRecords(table);
-    if (!rows.length) throw new Error("取り込める行がありませんでした");
-    if (mode === "append") {
-      const key = r => r[0] + "|" + r[1] + "|" + r[2] + "|" + r[3] + "|" + (r[7] || "");
-      const map = new Map(DATA.map(r => [key(r), r]));
-      rows.forEach(r => map.set(key(r), r));
-      DATA = [...map.values()];
-      $("importMsg").textContent = `${fmt(rows.length)}件を追加で取り込みました（合計 ${fmt(DATA.length)}件）。`;
-    } else {
-      DATA = rows;
-      $("importMsg").textContent = `${fmt(rows.length)}件を取り込みました（置き換え）。`;
-    }
-    DATA_VERSION = Date.now();
-    localStorage.setItem(LS_KEY, JSON.stringify({ version: DATA_VERSION, rows: DATA }));
-    state.city = null;
-    fillPrefs(); render();
+    $("importMsg").textContent = await importFile(f);
+  } catch (err) {
+    $("importMsg").textContent = "取り込めませんでした：" + err.message;
+  }
+});
+/* ドラッグ＆ドロップ取込 */
+let dragDepth = 0;
+window.addEventListener("dragenter", e => {
+  e.preventDefault();
+  if ($("gate").style.display !== "none") return;
+  dragDepth++;
+  $("dropOverlay").style.display = "flex";
+});
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("dragleave", e => {
+  e.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) $("dropOverlay").style.display = "none";
+});
+window.addEventListener("drop", async e => {
+  e.preventDefault();
+  dragDepth = 0;
+  $("dropOverlay").style.display = "none";
+  if ($("gate").style.display !== "none") return;
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  $("importModal").classList.add("open");
+  try {
+    $("importMsg").textContent = await importFile(f);
   } catch (err) {
     $("importMsg").textContent = "取り込めませんでした：" + err.message;
   }
